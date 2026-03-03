@@ -139,3 +139,7 @@ export const approveRegistration = (id) =>
 
 export const rejectRegistration = (id) =>
   api.post(`/registrations/${id}/reject`);
+
+// ── Reports / Natural Language Query ─────────────────────────
+export const queryReports = (question) =>
+  api.post('/reports/query', { question });

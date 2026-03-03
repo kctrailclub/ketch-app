@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { getHours, getUsers, getHouseholds } from '../api/client';
+import { getHours, getUsers, getHouseholds, queryReports } from '../api/client';
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => currentYear - i);
@@ -74,6 +74,12 @@ export default function Reports() {
   const [trendYear,    setTrendYear]    = useState(currentYear);
   const [memberYear,   setMemberYear]   = useState(currentYear);
   const [expandedHH,   setExpandedHH]   = useState(new Set());
+
+  // Ask a Question tab state
+  const [nlQuestion,  setNlQuestion]  = useState('');
+  const [nlResult,    setNlResult]    = useState(null);
+  const [nlLoading,   setNlLoading]   = useState(false);
+  const [nlError,     setNlError]     = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -162,12 +168,28 @@ export default function Reports() {
     });
   };
 
+  const handleNlQuery = async () => {
+    if (!nlQuestion.trim()) return;
+    setNlLoading(true);
+    setNlError('');
+    setNlResult(null);
+    try {
+      const res = await queryReports(nlQuestion.trim());
+      setNlResult(res.data);
+    } catch (err) {
+      setNlError(err.response?.data?.detail || 'Something went wrong. Please try again.');
+    } finally {
+      setNlLoading(false);
+    }
+  };
+
   if (loading) return <div className="loading-page"><span className="spinner" /></div>;
 
   const tabs = [
     { id:'projects', label:'Projects YTD'        },
     { id:'trends',   label:'Project Trends'       },
     { id:'members',  label:'Members & Households' },
+    { id:'query',    label:'Ask a Question'        },
   ];
 
   return (
@@ -413,6 +435,92 @@ export default function Reports() {
                   </div>
                 )}
             </div>
+          </>
+        )}
+
+        {/* ── Ask a Question ────────────────────────────────── */}
+        {tab === 'query' && (
+          <>
+            <div className="card" style={{ marginBottom:'1.5rem' }}>
+              <div className="card-header">
+                <h3>Ask a Question</h3>
+              </div>
+              <p style={{ fontSize:'0.9rem', color:'var(--text-muted)', marginBottom:'1rem' }}>
+                Ask a question in plain English about volunteer hours, members, projects, or households.
+                The system will translate your question into a database query and return the results.
+              </p>
+              <div style={{ display:'flex', gap:'0.75rem', alignItems:'flex-start' }}>
+                <input
+                  type="text"
+                  value={nlQuestion}
+                  onChange={e => setNlQuestion(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !nlLoading) handleNlQuery(); }}
+                  placeholder='e.g. "Who has the most approved hours this year?"'
+                  style={{ flex:1 }}
+                />
+                <button
+                  className="btn btn-primary"
+                  onClick={handleNlQuery}
+                  disabled={nlLoading || !nlQuestion.trim()}
+                >
+                  {nlLoading ? 'Thinking...' : 'Ask'}
+                </button>
+              </div>
+
+              {nlError && (
+                <div className="alert alert-error" style={{ marginTop:'1rem' }}>{nlError}</div>
+              )}
+            </div>
+
+            {nlResult && (
+              <>
+                {/* Generated SQL for transparency */}
+                <div className="card" style={{ marginBottom:'1rem' }}>
+                  <div className="card-header"><h3>Generated SQL</h3></div>
+                  <pre style={{
+                    background:'var(--fern)', padding:'1rem', borderRadius:'var(--radius-sm)',
+                    fontSize:'0.82rem', overflowX:'auto', color:'var(--text-secondary)',
+                    fontFamily:'monospace', whiteSpace:'pre-wrap', margin:0,
+                  }}>
+                    {nlResult.sql}
+                  </pre>
+                </div>
+
+                {/* Results table */}
+                <div className="card">
+                  <div className="card-header">
+                    <h3>Results</h3>
+                    <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
+                      {nlResult.row_count} row{nlResult.row_count !== 1 ? 's' : ''} returned
+                    </span>
+                  </div>
+                  {nlResult.rows.length === 0 ? (
+                    <div className="empty-state"><p>No results found.</p></div>
+                  ) : (
+                    <div className="table-wrapper">
+                      <table>
+                        <thead>
+                          <tr>
+                            {nlResult.columns.map(col => (
+                              <th key={col}>{col}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {nlResult.rows.map((row, i) => (
+                            <tr key={i}>
+                              {row.map((cell, j) => (
+                                <td key={j}>{cell !== null ? String(cell) : '\u2014'}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
