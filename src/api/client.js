@@ -114,6 +114,9 @@ export const updateProject = (id, data) =>
 export const getRewardSettings = () =>
   api.get('/settings/rewards');
 
+export const getRewardThreshold = () =>
+  api.get('/settings/rewards/threshold');
+
 export const updateRewardSettings = (data) =>
   api.post('/settings/rewards', data);
 

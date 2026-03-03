@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getHours, getProjects, submitHours, deleteHours } from '../api/client';
+import { getHours, getProjects, submitHours, deleteHours, getRewardThreshold } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 // ── Submit Hours ──────────────────────────────────────────────
@@ -124,9 +124,10 @@ export function SubmitHours() {
 
 // ── My Hours ──────────────────────────────────────────────────
 export function MyHours() {
-  const [hours,   setHours]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [year,    setYear]    = useState(new Date().getFullYear());
+  const [hours,     setHours]     = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [year,      setYear]      = useState(new Date().getFullYear());
+  const [threshold, setThreshold] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -141,6 +142,9 @@ export function MyHours() {
   };
 
   useEffect(() => { load(); }, [year]);
+  useEffect(() => {
+    getRewardThreshold().then(r => setThreshold(r.data.threshold)).catch(console.error);
+  }, []);
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this hour record?')) return;
@@ -170,6 +174,40 @@ export function MyHours() {
             <Link to="/hours/submit" className="btn btn-primary">+ Log Hours</Link>
           </div>
         </div>
+
+        {threshold !== null && year === new Date().getFullYear() && (() => {
+          const pct = Math.min((total / threshold) * 100, 100);
+          const met = total >= threshold;
+          return (
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+                <strong>Reward Progress</strong>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  {total.toFixed(1)} / {threshold} hours
+                </span>
+              </div>
+              <div style={{
+                background: 'var(--bg-muted, #e5e7eb)',
+                borderRadius: '0.5rem',
+                height: '1rem',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${pct}%`,
+                  height: '100%',
+                  borderRadius: '0.5rem',
+                  background: met ? 'var(--color-success, #22c55e)' : 'var(--color-primary, #3b82f6)',
+                  transition: 'width 0.4s ease',
+                }} />
+              </div>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                {met
+                  ? 'Congratulations! You have met the reward threshold!'
+                  : `${(threshold - total).toFixed(1)} more hours needed to reach the reward threshold.`}
+              </p>
+            </div>
+          );
+        })()}
 
         <div className="card">
           {loading ? (
