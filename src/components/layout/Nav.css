@@ -1,0 +1,113 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--nav-height);
+  background: var(--forest);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+
+.nav-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--white);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.nav-brand:hover { color: var(--moss); }
+
+.nav-links {
+  display: flex;
+  list-style: none;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.nav-link {
+  display: block;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-sm);
+  color: rgba(255,255,255,0.75);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.nav-link:hover  { color: var(--white); background: rgba(255,255,255,0.1); }
+.nav-link.active { color: var(--white); background: rgba(255,255,255,0.15); }
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.nav-user {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.8);
+  display: flex;
+  align-items: center;
+}
+
+.nav-right .btn-ghost {
+  color: rgba(255,255,255,0.75);
+  font-size: 0.85rem;
+}
+.nav-right .btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem;
+}
+.nav-hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--white);
+  border-radius: 2px;
+}
+
+.nav-mobile {
+  display: none;
+  flex-direction: column;
+  background: var(--forest);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding: 0.5rem 0;
+}
+
+.nav-mobile-link {
+  display: block;
+  padding: 0.75rem 1.5rem;
+  color: rgba(255,255,255,0.8);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+.nav-mobile-link:hover, .nav-mobile-link.active {
+  background: rgba(255,255,255,0.08);
+  color: var(--white);
+}
+
+@media (max-width: 768px) {
+  .nav { height: auto; }
+  .nav-links, .nav-user, .nav-right .btn-ghost { display: none; }
+  .nav-hamburger { display: flex; }
+  .nav-mobile { display: flex; }
+  .nav-inner { height: var(--nav-height); }
+}
