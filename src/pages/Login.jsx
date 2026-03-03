@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { login, getMe } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
@@ -103,12 +103,12 @@ export default function Login() {
           </button>
         </form>
 
-        <a href="/forgot-password" className="login-forgot">
+        <Link to="/forgot-password" className="login-forgot">
           Forgot your password?
-        </a>
-        <a href="/register" className="login-forgot" style={{ marginTop:'0.5rem' }}>
+        </Link>
+        <Link to="/register" className="login-forgot" style={{ marginTop:'0.5rem' }}>
           Don't have an account? Request one
-        </a>
+        </Link>
       </div>
     </div>
   );
