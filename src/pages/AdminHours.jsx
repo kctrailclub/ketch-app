@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getPendingHours, reviewHours } from '../api/client';
+import { getPendingHours, reviewHours, approveAllHours } from '../api/client';
 
 export default function AdminHours() {
   const [hours,   setHours]   = useState([]);
@@ -22,8 +22,23 @@ export default function AdminHours() {
 
   useEffect(() => { load(); }, []);
 
+  const [approvingAll, setApprovingAll] = useState(false);
+
   const openModal = (hour, action) => { setModal({ hour, action }); setNote(''); };
   const closeModal = () => { setModal(null); setNote(''); };
+
+  const handleApproveAll = async () => {
+    if (!confirm(`Approve all ${hours.length} pending submission${hours.length !== 1 ? 's' : ''}?`)) return;
+    setApprovingAll(true);
+    try {
+      await approveAllHours();
+      setHours([]);
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to approve all.');
+    } finally {
+      setApprovingAll(false);
+    }
+  };
 
   const handleReview = async () => {
     setSaving(true);
@@ -46,6 +61,15 @@ export default function AdminHours() {
             <h1>Pending Hours</h1>
             <p>{hours.length} submission{hours.length !== 1 ? 's' : ''} awaiting review</p>
           </div>
+          {hours.length > 0 && (
+            <button
+              className="btn btn-primary"
+              onClick={handleApproveAll}
+              disabled={approvingAll}
+            >
+              {approvingAll ? 'Approving…' : `Approve All (${hours.length})`}
+            </button>
+          )}
         </div>
 
         <div className="card">

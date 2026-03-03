@@ -75,6 +75,9 @@ export const reviewHours = (id, status, status_note) =>
 export const deleteHours = (id) =>
   api.delete(`/hours/${id}`);
 
+export const approveAllHours = () =>
+  api.post('/hours/approve-all');
+
 // ── Households ────────────────────────────────────────────────
 export const getHouseholds = () =>
   api.get('/households/');
