@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getHours, getUsers, getHouseholds, queryReports } from '../api/client';
 
 const currentYear = new Date().getFullYear();
@@ -74,6 +74,8 @@ export default function Reports() {
   const [trendYear,    setTrendYear]    = useState(currentYear);
   const [memberYear,   setMemberYear]   = useState(currentYear);
   const [expandedHH,   setExpandedHH]   = useState(new Set());
+  const [expandedProj, setExpandedProj] = useState(new Set());
+  const [expandedTrend, setExpandedTrend] = useState(new Set());
 
   // Ask a Question tab state
   const [nlQuestion,  setNlQuestion]  = useState('');
@@ -103,9 +105,20 @@ export default function Reports() {
   const projectData = useMemo(() => {
     const map = {};
     allHours.filter(h => new Date(h.service_date).getFullYear() === currentYear)
-      .forEach(h => { map[h.project_name] = (map[h.project_name] || 0) + h.hours; });
+      .forEach(h => {
+        if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
+        map[h.project_name].hours += h.hours;
+        const mName = h.member_name || `Member #${h.member_id}`;
+        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
+      });
     return Object.entries(map)
-      .map(([name, hours]) => ({ name, hours: parseFloat(hours.toFixed(2)) }))
+      .map(([name, d]) => ({
+        name,
+        hours: parseFloat(d.hours.toFixed(2)),
+        members: Object.entries(d.members)
+          .map(([mName, mHours]) => ({ name: mName, hours: parseFloat(mHours.toFixed(2)) }))
+          .sort((a, b) => b.hours - a.hours),
+      }))
       .sort((a, b) => b.hours - a.hours);
   }, [allHours]);
 
@@ -115,9 +128,20 @@ export default function Reports() {
   const trendData = useMemo(() => {
     const map = {};
     allHours.filter(h => new Date(h.service_date).getFullYear() === trendYear)
-      .forEach(h => { map[h.project_name] = (map[h.project_name] || 0) + h.hours; });
+      .forEach(h => {
+        if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
+        map[h.project_name].hours += h.hours;
+        const mName = h.member_name || `Member #${h.member_id}`;
+        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
+      });
     return Object.entries(map)
-      .map(([name, hours]) => ({ name, hours: parseFloat(hours.toFixed(2)) }))
+      .map(([name, d]) => ({
+        name,
+        hours: parseFloat(d.hours.toFixed(2)),
+        members: Object.entries(d.members)
+          .map(([mName, mHours]) => ({ name: mName, hours: parseFloat(mHours.toFixed(2)) }))
+          .sort((a, b) => b.hours - a.hours),
+      }))
       .sort((a, b) => b.hours - a.hours);
   }, [allHours, trendYear]);
 
@@ -160,13 +184,14 @@ export default function Reports() {
     return { individuals, householdRows };
   }, [allHours, users, households, memberYear]);
 
-  const toggleHH = (id) => {
-    setExpandedHH(prev => {
+  const toggleSet = (setter, id) => {
+    setter(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
+  const toggleHH = (id) => toggleSet(setExpandedHH, id);
 
   const handleNlQuery = async () => {
     if (!nlQuestion.trim()) return;
@@ -241,7 +266,9 @@ export default function Reports() {
             <div className="card">
               <div className="card-header">
                 <h3>Project Breakdown</h3>
-                <ExportButton onClick={() => exportCSV(
+                <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                  <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>click row to expand</span>
+                  <ExportButton onClick={() => exportCSV(
                   `projects-ytd-${currentYear}.csv`,
                   [
                     { label:'Rank',    value: (_, i) => i + 1 },
@@ -251,23 +278,43 @@ export default function Reports() {
                   ],
                   projectData.map((r, i) => ({ ...r, _i: i }))
                 )} />
+                </div>
               </div>
               <div className="table-wrapper">
                 <table>
-                  <thead><tr><th>#</th><th>Project</th><th>Hours</th><th>% of Total</th></tr></thead>
+                  <thead><tr><th>#</th><th>Project</th><th>Hours</th><th>% of Total</th><th></th></tr></thead>
                   <tbody>
                     {projectData.map((p, i) => (
-                      <tr key={p.name}>
-                        <td style={{ color:'var(--text-muted)', width:40 }}>{i + 1}</td>
-                        <td><strong>{p.name}</strong></td>
-                        <td>{p.hours.toFixed(1)}</td>
-                        <td>
-                          <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                            <div style={{ height:6, borderRadius:3, background:'var(--forest-light)', width:`${Math.round((p.hours/projectTotal)*100)}%`, minWidth:4, maxWidth:120 }} />
-                            <span>{((p.hours/projectTotal)*100).toFixed(1)}%</span>
-                          </div>
-                        </td>
-                      </tr>
+                      <React.Fragment key={p.name}>
+                        <tr
+                          onClick={() => toggleSet(setExpandedProj, p.name)}
+                          style={{ cursor:'pointer' }}
+                        >
+                          <td style={{ color:'var(--text-muted)', width:40 }}>{i + 1}</td>
+                          <td><strong>{p.name}</strong></td>
+                          <td>{p.hours.toFixed(1)}</td>
+                          <td>
+                            <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                              <div style={{ height:6, borderRadius:3, background:'var(--forest-light)', width:`${Math.round((p.hours/projectTotal)*100)}%`, minWidth:4, maxWidth:120 }} />
+                              <span>{((p.hours/projectTotal)*100).toFixed(1)}%</span>
+                            </div>
+                          </td>
+                          <td style={{ width:32, textAlign:'center', color:'var(--text-muted)', fontSize:'0.8rem' }}>
+                            {expandedProj.has(p.name) ? '▲' : '▼'}
+                          </td>
+                        </tr>
+                        {expandedProj.has(p.name) && p.members.map(m => (
+                          <tr key={m.name} style={{ background:'var(--fern)' }}>
+                            <td />
+                            <td style={{ paddingLeft:'2rem', fontSize:'0.88rem', color:'var(--text-secondary)' }}>
+                              ↳ {m.name}
+                            </td>
+                            <td style={{ fontSize:'0.88rem', color:'var(--text-secondary)' }}>{m.hours.toFixed(1)}</td>
+                            <td />
+                            <td />
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -300,21 +347,44 @@ export default function Reports() {
             <div className="card">
               <div className="card-header">
                 <h3>All Projects — {trendYear}</h3>
-                <ExportButton onClick={() => exportCSV(
-                  `project-trends-${trendYear}.csv`,
-                  [
-                    { label:'Project', value: r => r.name },
-                    { label:'Hours',   value: r => r.hours },
-                  ],
-                  trendData
-                )} />
+                <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                  <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>click row to expand</span>
+                  <ExportButton onClick={() => exportCSV(
+                    `project-trends-${trendYear}.csv`,
+                    [
+                      { label:'Project', value: r => r.name },
+                      { label:'Hours',   value: r => r.hours },
+                    ],
+                    trendData
+                  )} />
+                </div>
               </div>
               <div className="table-wrapper">
                 <table>
-                  <thead><tr><th>Project</th><th>Hours</th></tr></thead>
+                  <thead><tr><th>Project</th><th>Hours</th><th></th></tr></thead>
                   <tbody>
                     {trendData.map(p => (
-                      <tr key={p.name}><td><strong>{p.name}</strong></td><td>{p.hours.toFixed(1)}</td></tr>
+                      <React.Fragment key={p.name}>
+                        <tr
+                          onClick={() => toggleSet(setExpandedTrend, p.name)}
+                          style={{ cursor:'pointer' }}
+                        >
+                          <td><strong>{p.name}</strong></td>
+                          <td>{p.hours.toFixed(1)}</td>
+                          <td style={{ width:32, textAlign:'center', color:'var(--text-muted)', fontSize:'0.8rem' }}>
+                            {expandedTrend.has(p.name) ? '▲' : '▼'}
+                          </td>
+                        </tr>
+                        {expandedTrend.has(p.name) && p.members.map(m => (
+                          <tr key={m.name} style={{ background:'var(--fern)' }}>
+                            <td style={{ paddingLeft:'2rem', fontSize:'0.88rem', color:'var(--text-secondary)' }}>
+                              ↳ {m.name}
+                            </td>
+                            <td style={{ fontSize:'0.88rem', color:'var(--text-secondary)' }}>{m.hours.toFixed(1)}</td>
+                            <td />
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
