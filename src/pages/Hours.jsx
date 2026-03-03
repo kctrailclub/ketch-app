@@ -83,8 +83,6 @@ export function SubmitHours() {
                 max={`${new Date().getFullYear()}-12-31`}
                 required
               />
-                required
-              />
             </div>
 
             <div className="form-group">
@@ -133,7 +131,7 @@ export function MyHours() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await getHours({ year });
+      const res = await getHours({ year, household_scope: true });
       setHours(res.data);
     } catch (err) {
       console.error(err);
