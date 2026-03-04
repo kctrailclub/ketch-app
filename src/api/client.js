@@ -72,6 +72,9 @@ export const submitHours = (data) =>
 export const reviewHours = (id, status, status_note) =>
   api.post(`/hours/${id}/review`, { status, status_note });
 
+export const updateHours = (id, data) =>
+  api.patch(`/hours/${id}`, data);
+
 export const deleteHours = (id) =>
   api.delete(`/hours/${id}`);
 
