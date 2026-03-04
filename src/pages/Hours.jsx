@@ -197,13 +197,14 @@ export function MyHours() {
 
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
   const total = hours.filter(h => h.status === 'approved').reduce((s, h) => s + h.hours, 0);
+  const isFamily = hours.some(h => h.member_id !== user?.user_id);
 
   return (
     <div className="page">
       <div className="container">
         <div className="page-header">
           <div className="page-header-text">
-            <h1>My Hours</h1>
+            <h1>{isFamily ? 'My Family Hours' : 'My Hours'}</h1>
             <p>{total.toFixed(1)} approved hours in {year}</p>
           </div>
           <div style={{ display:'flex', gap:'0.75rem', alignItems:'center' }}>
