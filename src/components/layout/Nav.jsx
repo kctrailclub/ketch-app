@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Nav.css';
@@ -14,11 +14,24 @@ export default function Nav() {
   const location = useLocation();
   const navigate  = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const handleSignOut = () => {
     signOut();
     navigate('/login');
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const isActive = (path) => location.pathname.startsWith(path);
 
@@ -34,8 +47,7 @@ export default function Nav() {
       { to: '/admin/reports',     label: 'Reports' },
       { to: '/admin/rewards',     label: 'Rewards' },
     ] : [
-      { to: '/household',        label: 'Household' },
-      { to: '/change-password',  label: 'Change Password' },
+      { to: '/household', label: 'Household' },
     ]),
   ];
 
@@ -62,13 +74,40 @@ export default function Nav() {
         </ul>
 
         <div className="nav-right">
-          <span className="nav-user">
-            {user?.firstname} {user?.lastname}
-            {user?.is_admin && <span className="badge badge-admin" style={{marginLeft:'0.5rem',fontSize:'0.7rem'}}>Admin</span>}
-          </span>
-          <button className="btn btn-ghost btn-sm" onClick={handleSignOut}>
-            Sign out
-          </button>
+          {/* User dropdown */}
+          <div className="nav-dropdown" ref={dropdownRef}>
+            <button
+              className="nav-dropdown-trigger"
+              onClick={() => setDropdownOpen(o => !o)}
+            >
+              <span className="nav-user">
+                {user?.firstname} {user?.lastname}
+                {user?.is_admin && <span className="badge badge-admin" style={{marginLeft:'0.5rem',fontSize:'0.7rem'}}>Admin</span>}
+              </span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M3 5l3 3 3-3"/>
+              </svg>
+            </button>
+            {dropdownOpen && (
+              <div className="nav-dropdown-menu">
+                <Link
+                  to="/change-password"
+                  className="nav-dropdown-item"
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  Change Password
+                </Link>
+                <div className="nav-dropdown-divider" />
+                <button
+                  className="nav-dropdown-item"
+                  onClick={() => { setDropdownOpen(false); handleSignOut(); }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             className="nav-hamburger"
             onClick={() => setMenuOpen(o => !o)}
@@ -92,6 +131,14 @@ export default function Nav() {
               {l.label}
             </Link>
           ))}
+          <div className="nav-mobile-divider" />
+          <Link
+            to="/change-password"
+            className="nav-mobile-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            Change Password
+          </Link>
           <button className="btn btn-ghost btn-sm" onClick={handleSignOut} style={{margin:'0.5rem 1rem'}}>
             Sign out
           </button>
