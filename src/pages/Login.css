@@ -12,9 +12,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(45,74,45,0.15) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(90,143,90,0.1) 0%, transparent 50%),
-    linear-gradient(160deg, var(--fern) 0%, var(--stone) 50%, var(--moss) 100%);
+    radial-gradient(ellipse at 20% 50%, rgba(30,101,119,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(231,97,42,0.08) 0%, transparent 50%),
+    linear-gradient(160deg, var(--fern) 0%, var(--stone) 50%, #E0E0E0 100%);
 }
 
 .login-card {
@@ -30,15 +30,15 @@
 }
 
 .login-logo {
-  width: 64px;
-  height: 64px;
-  background: var(--forest);
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.25rem;
-  color: var(--white);
+}
+
+.login-logo img {
+  max-width: 240px;
+  height: auto;
 }
 
 .login-card h1 {

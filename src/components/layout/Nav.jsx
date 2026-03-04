@@ -3,10 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Nav.css';
 
-const TreeIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <path d="M14 3L4 13h4v2L5 18h5v2H9v5h10v-5h-1v-2h5l-3-3v-2h4L14 3z" fill="currentColor"/>
-  </svg>
+const BrandLogo = () => (
+  <img src="/kcr-logo.png" alt="Ken-Caryl Ranch" style={{ height: 36, width: 'auto' }} />
 );
 
 export default function Nav() {
@@ -55,7 +53,7 @@ export default function Nav() {
     <nav className="nav">
       <div className="nav-inner container">
         <Link to="/dashboard" className="nav-brand">
-          <TreeIcon />
+          <BrandLogo />
           <span>KCTC Volunteer Hours</span>
         </Link>
 

@@ -43,9 +43,7 @@ export default function Login() {
       <div className="login-bg" />
       <div className="login-card">
         <div className="login-logo">
-          <svg width="40" height="40" viewBox="0 0 28 28" fill="none">
-            <path d="M14 3L4 13h4v2L5 18h5v2H9v5h10v-5h-1v-2h5l-3-3v-2h4L14 3z" fill="currentColor"/>
-          </svg>
+          <img src="/kcr-logo.png" alt="Ken-Caryl Ranch" />
         </div>
         <h1>KCTC Volunteer Hours</h1>
         <p className="login-subtitle">Sign in to track your trail work</p>
