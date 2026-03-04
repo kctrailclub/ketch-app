@@ -156,3 +156,40 @@ export const queryReports = (question) =>
 // ── Audit ────────────────────────────────────────────────────
 export const getAuditLogs = (params) =>
   api.get('/audit/', { params });
+
+// ── Resources ────────────────────────────────────────────────
+export const getSponsors = (includeInactive = false) =>
+  api.get('/resources/sponsors', { params: { include_inactive: includeInactive } });
+
+export const createSponsor = (data) =>
+  api.post('/resources/sponsors', data);
+
+export const updateSponsor = (id, data) =>
+  api.patch(`/resources/sponsors/${id}`, data);
+
+export const deleteSponsor = (id) =>
+  api.delete(`/resources/sponsors/${id}`);
+
+export const getResourceUpdates = (includeInactive = false, includeExpired = false) =>
+  api.get('/resources/updates', { params: { include_inactive: includeInactive, include_expired: includeExpired } });
+
+export const createResourceUpdate = (data) =>
+  api.post('/resources/updates', data);
+
+export const editResourceUpdate = (id, data) =>
+  api.patch(`/resources/updates/${id}`, data);
+
+export const deleteResourceUpdate = (id) =>
+  api.delete(`/resources/updates/${id}`);
+
+export const getResourceDocuments = (includeInactive = false) =>
+  api.get('/resources/documents', { params: { include_inactive: includeInactive } });
+
+export const createResourceDocument = (data) =>
+  api.post('/resources/documents', data);
+
+export const updateResourceDocument = (id, data) =>
+  api.patch(`/resources/documents/${id}`, data);
+
+export const deleteResourceDocument = (id) =>
+  api.delete(`/resources/documents/${id}`);

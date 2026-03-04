@@ -16,6 +16,8 @@ import AdminProjects from './pages/AdminProjects';
 import BulkHours from './pages/BulkHours';
 import Reports from './pages/Reports';
 import Rewards from './pages/Rewards';
+import Resources from './pages/Resources';
+import AdminResources from './pages/AdminResources';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -89,6 +91,12 @@ function AppRoutes() {
       } />
       <Route path="/admin/rewards" element={
         <RequireAdmin><AppLayout><Rewards /></AppLayout></RequireAdmin>
+      } />
+      <Route path="/admin/resources" element={
+        <RequireAdmin><AppLayout><AdminResources /></AppLayout></RequireAdmin>
+      } />
+      <Route path="/resources" element={
+        <RequireAuth><AppLayout><Resources /></AppLayout></RequireAuth>
       } />
 
       {/* Default redirect */}
