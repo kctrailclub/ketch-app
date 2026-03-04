@@ -157,15 +157,6 @@ export default function AdminUsers() {
         )}
 
         <div className="card">
-          <div style={{ marginBottom:'1rem' }}>
-            <input
-              type="search"
-              placeholder="Search by name or email…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-
           {loading ? <span className="spinner" /> : (
             <div className="table-wrapper">
               <table>

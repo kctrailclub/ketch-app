@@ -77,7 +77,6 @@ export default function BulkHours() {
         <div className="page-header">
           <div className="page-header-text">
             <h1>Log Crew Hours</h1>
-            <p>Enter hours for multiple members on a single project</p>
           </div>
         </div>
 
