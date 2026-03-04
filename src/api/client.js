@@ -152,3 +152,7 @@ export const rejectRegistration = (id) =>
 // ── Reports / Natural Language Query ─────────────────────────
 export const queryReports = (question) =>
   api.post('/reports/query', { question });
+
+// ── Audit ────────────────────────────────────────────────────
+export const getAuditLogs = (params) =>
+  api.get('/audit/', { params });

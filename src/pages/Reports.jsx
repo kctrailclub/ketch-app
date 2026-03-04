@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getHours, getUsers, getHouseholds, queryReports } from '../api/client';
+import { getHours, getUsers, getHouseholds, queryReports, getAuditLogs } from '../api/client';
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => currentYear - i);
@@ -82,6 +82,14 @@ export default function Reports() {
   const [nlResult,    setNlResult]    = useState(null);
   const [nlLoading,   setNlLoading]   = useState(false);
   const [nlError,     setNlError]     = useState('');
+
+  // Activity Log tab state
+  const [auditLogs,    setAuditLogs]    = useState([]);
+  const [auditPage,    setAuditPage]    = useState(1);
+  const [auditPages,   setAuditPages]   = useState(1);
+  const [auditTotal,   setAuditTotal]   = useState(0);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditFilters, setAuditFilters] = useState({ action: '', entity_type: '', user_id: '', date_from: '', date_to: '' });
 
   useEffect(() => {
     const load = async () => {
@@ -193,6 +201,24 @@ export default function Reports() {
   };
   const toggleHH = (id) => toggleSet(setExpandedHH, id);
 
+  const fetchAuditLogs = async (page, filters) => {
+    setAuditLoading(true);
+    try {
+      const params = { page, per_page: 50 };
+      Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+      const res = await getAuditLogs(params);
+      setAuditLogs(res.data.data);
+      setAuditPage(res.data.page);
+      setAuditPages(res.data.pages);
+      setAuditTotal(res.data.total);
+    } catch (err) { console.error(err); }
+    finally { setAuditLoading(false); }
+  };
+
+  useEffect(() => {
+    if (tab === 'activity') fetchAuditLogs(1, auditFilters);
+  }, [tab, auditFilters]);
+
   const handleNlQuery = async () => {
     if (!nlQuestion.trim()) return;
     setNlLoading(true);
@@ -215,6 +241,7 @@ export default function Reports() {
     { id:'trends',   label:'Project Trends'       },
     { id:'members',  label:'Members & Households' },
     { id:'query',    label:'Ask a Question'        },
+    { id:'activity', label:'Activity Log'          },
   ];
 
   return (
@@ -591,6 +618,139 @@ export default function Reports() {
                 </div>
               </>
             )}
+          </>
+        )}
+        {/* ── Activity Log ────────────────────────────────────── */}
+        {tab === 'activity' && (
+          <>
+            {/* Filters */}
+            <div className="card" style={{ marginBottom:'1.5rem' }}>
+              <div className="card-header"><h3>Filters</h3></div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'0.75rem' }}>
+                <div>
+                  <label style={{ fontSize:'0.82rem', color:'var(--text-muted)', display:'block', marginBottom:'0.25rem' }}>Action</label>
+                  <select value={auditFilters.action} onChange={e => setAuditFilters(f => ({ ...f, action: e.target.value }))}>
+                    <option value="">All</option>
+                    <option value="create">Create</option>
+                    <option value="update">Update</option>
+                    <option value="delete">Delete</option>
+                    <option value="approve">Approve</option>
+                    <option value="reject">Reject</option>
+                    <option value="approve_all">Approve All</option>
+                    <option value="login">Login</option>
+                    <option value="set_password">Set Password</option>
+                    <option value="change_password">Change Password</option>
+                    <option value="resend_invite">Resend Invite</option>
+                    <option value="join_request">Join Request</option>
+                    <option value="remove_member">Remove Member</option>
+                    <option value="send_emails">Send Emails</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize:'0.82rem', color:'var(--text-muted)', display:'block', marginBottom:'0.25rem' }}>Entity Type</label>
+                  <select value={auditFilters.entity_type} onChange={e => setAuditFilters(f => ({ ...f, entity_type: e.target.value }))}>
+                    <option value="">All</option>
+                    <option value="hour">Hours</option>
+                    <option value="user">Users</option>
+                    <option value="household">Households</option>
+                    <option value="project">Projects</option>
+                    <option value="registration">Registrations</option>
+                    <option value="settings">Settings</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize:'0.82rem', color:'var(--text-muted)', display:'block', marginBottom:'0.25rem' }}>User</label>
+                  <select value={auditFilters.user_id} onChange={e => setAuditFilters(f => ({ ...f, user_id: e.target.value }))}>
+                    <option value="">All</option>
+                    {users.map(u => <option key={u.user_id} value={u.user_id}>{u.firstname} {u.lastname}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize:'0.82rem', color:'var(--text-muted)', display:'block', marginBottom:'0.25rem' }}>From</label>
+                  <input type="date" value={auditFilters.date_from} onChange={e => setAuditFilters(f => ({ ...f, date_from: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize:'0.82rem', color:'var(--text-muted)', display:'block', marginBottom:'0.25rem' }}>To</label>
+                  <input type="date" value={auditFilters.date_to} onChange={e => setAuditFilters(f => ({ ...f, date_to: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+
+            {/* Results */}
+            <div className="card">
+              <div className="card-header">
+                <h3>Activity Log</h3>
+                <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                  <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
+                    {auditTotal} entries · Page {auditPage} of {auditPages}
+                  </span>
+                  <ExportButton onClick={() => exportCSV(
+                    'activity-log.csv',
+                    [
+                      { label:'Date',        value: r => new Date(r.created).toLocaleString() },
+                      { label:'User',        value: r => r.user_name },
+                      { label:'Action',      value: r => r.action },
+                      { label:'Type',        value: r => r.entity_type },
+                      { label:'Description', value: r => r.summary },
+                    ],
+                    auditLogs
+                  )} />
+                </div>
+              </div>
+              {auditLoading ? (
+                <div className="loading-page"><span className="spinner" /></div>
+              ) : auditLogs.length === 0 ? (
+                <div className="empty-state"><p>No activity logged yet.</p></div>
+              ) : (
+                <>
+                  <div className="table-wrapper">
+                    <table>
+                      <thead>
+                        <tr><th>Date</th><th>User</th><th>Action</th><th>Type</th><th>Description</th></tr>
+                      </thead>
+                      <tbody>
+                        {auditLogs.map(log => (
+                          <tr key={log.audit_log_id}>
+                            <td style={{ whiteSpace:'nowrap', fontSize:'0.85rem' }}>
+                              {new Date(log.created).toLocaleDateString()}{' '}
+                              <span style={{ color:'var(--text-muted)' }}>{new Date(log.created).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</span>
+                            </td>
+                            <td>{log.user_name}</td>
+                            <td>
+                              <span style={{
+                                display:'inline-block', padding:'0.15rem 0.5rem', borderRadius:'999px',
+                                fontSize:'0.75rem', fontWeight:600, textTransform:'capitalize',
+                                ...(['create','approve','approve_all'].includes(log.action) ? { background:'#d4edda', color:'#155724' } :
+                                  ['reject','delete','remove_member'].includes(log.action) ? { background:'#f8d7da', color:'#721c24' } :
+                                  ['login','set_password','change_password'].includes(log.action) ? { background:'#cce5ff', color:'#004085' } :
+                                  { background:'#e2e3e5', color:'#383d41' }),
+                              }}>
+                                {log.action.replace(/_/g, ' ')}
+                              </span>
+                            </td>
+                            <td style={{ textTransform:'capitalize' }}>{log.entity_type}</td>
+                            <td style={{ fontSize:'0.88rem', color:'var(--text-secondary)' }}>{log.summary}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {auditPages > 1 && (
+                    <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:'1rem', padding:'1rem' }}>
+                      <button className="btn btn-secondary btn-sm" disabled={auditPage <= 1} onClick={() => fetchAuditLogs(auditPage - 1, auditFilters)}>
+                        Previous
+                      </button>
+                      <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
+                        Page {auditPage} of {auditPages}
+                      </span>
+                      <button className="btn btn-secondary btn-sm" disabled={auditPage >= auditPages} onClick={() => fetchAuditLogs(auditPage + 1, auditFilters)}>
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </>
         )}
       </div>
