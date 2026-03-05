@@ -39,9 +39,13 @@ export default function AdminHours() {
         getHours({ status_filter: 'approved', year: new Date().getFullYear() }),
         getProjects(),
       ]);
+      console.log('[AdminHours] h.data type:', typeof h.data, 'length:', h.data?.length, 'first:', h.data?.[0]);
+      console.log('[AdminHours] p.data type:', typeof p.data, 'length:', p.data?.length);
       setApproved(h.data);
       setProjects(p.data);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error('[AdminHours] loadApproved CAUGHT ERROR:', e);
+    }
     finally { setLoadingA(false); }
   };
 
