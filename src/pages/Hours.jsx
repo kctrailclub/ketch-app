@@ -196,7 +196,13 @@ export function MyHours() {
   };
 
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
-  const total = hours.filter(h => h.status === 'approved').reduce((s, h) => s + h.hours, 0);
+  const approvedHours = hours.filter(h => h.status === 'approved');
+  const total = approvedHours.reduce((s, h) => s + h.hours, 0);
+  const hasYouthHours = approvedHours.some(h => h.is_youth);
+  const creditedTotal = approvedHours.reduce((s, h) => {
+    if (h.is_youth) return s + (h.hours * ((h.youth_credit_pct ?? 50) / 100));
+    return s + h.hours;
+  }, 0);
   const isFamily = hours.some(h => h.member_id !== user?.user_id);
 
   return (
@@ -216,14 +222,14 @@ export function MyHours() {
         </div>
 
         {threshold !== null && year === new Date().getFullYear() && (() => {
-          const pct = Math.min((total / threshold) * 100, 100);
-          const met = total >= threshold;
+          const pct = Math.min((creditedTotal / threshold) * 100, 100);
+          const met = creditedTotal >= threshold;
           return (
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
                 <strong>Reward Progress</strong>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  {total.toFixed(1)} / {threshold} hours
+                  {creditedTotal.toFixed(1)} / {threshold} credited hours
                 </span>
               </div>
               <div style={{
@@ -243,8 +249,13 @@ export function MyHours() {
               <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 {met
                   ? 'Congratulations! You have met the reward threshold!'
-                  : `${(threshold - total).toFixed(1)} more hours needed to reach the reward threshold.`}
+                  : `${(threshold - creditedTotal).toFixed(1)} more hours needed to reach the reward threshold.`}
               </p>
+              {hasYouthHours && (
+                <p style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginTop:'0.5rem' }}>
+                  Youth hours are credited at the project's youth rate for reward qualification.
+                </p>
+              )}
             </div>
           );
         })()}
