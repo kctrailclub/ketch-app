@@ -113,6 +113,7 @@ export default function AdminHours() {
     h.member_name.toLowerCase().includes(search.toLowerCase()) ||
     h.project_name.toLowerCase().includes(search.toLowerCase())
   );
+  console.log('[AdminHours RENDER] tab:', tab, 'approved:', approved.length, 'filtered:', filtered.length, 'loadingA:', loadingA, 'search:', JSON.stringify(search));
 
   // ── Render ─────────────────────────────────────────────────
   return (
