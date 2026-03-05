@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { getHours, getUsers, getHouseholds, queryReports, getAuditLogs } from '../api/client';
 
 const currentYear = new Date().getFullYear();
@@ -67,10 +67,11 @@ function ExportButton({ onClick }) {
 
 export default function Reports() {
   const [tab,          setTab]          = useState('projects');
-  const [allHours,     setAllHours]     = useState([]);
+  const [hoursCache,   setHoursCache]   = useState({});    // { year: hours[] }
   const [users,        setUsers]        = useState([]);
   const [households,   setHouseholds]   = useState([]);
   const [loading,      setLoading]      = useState(true);
+  const [loadingYear,  setLoadingYear]  = useState(null);  // year currently being fetched
   const [trendYear,    setTrendYear]    = useState(currentYear);
   const [memberYear,   setMemberYear]   = useState(currentYear);
   const [expandedHH,   setExpandedHH]   = useState(new Set());
@@ -91,16 +92,35 @@ export default function Reports() {
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditFilters, setAuditFilters] = useState({ action: '', entity_type: '', user_id: '', date_from: '', date_to: '' });
 
+  // Track which years have been fetched (ref avoids stale closures)
+  const fetchedYears = useRef(new Set());
+
+  const fetchYear = async (year) => {
+    if (fetchedYears.current.has(year)) return;
+    fetchedYears.current.add(year);
+    setLoadingYear(year);
+    try {
+      const res = await getHours({ status_filter: 'approved', year });
+      setHoursCache(prev => ({ ...prev, [year]: res.data }));
+    } catch (e) {
+      fetchedYears.current.delete(year); // allow retry on error
+      console.error(e);
+    } finally {
+      setLoadingYear(null);
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
         const [hRes, uRes, hhRes] = await Promise.all([
-          getHours({ status_filter: 'approved' }),
+          getHours({ status_filter: 'approved', year: currentYear }),
           getUsers(),
           getHouseholds(),
         ]);
-        setAllHours(hRes.data);
+        setHoursCache({ [currentYear]: hRes.data });
+        fetchedYears.current.add(currentYear);
         setUsers(uRes.data);
         setHouseholds(hhRes.data);
       } catch (err) { console.error(err); }
@@ -109,11 +129,15 @@ export default function Reports() {
     load();
   }, []);
 
+  // Fetch year data on demand when user changes year selectors
+  useEffect(() => { fetchYear(trendYear); }, [trendYear]);
+  useEffect(() => { fetchYear(memberYear); }, [memberYear]);
+
   // ── Projects YTD (always current year) ───────────────────────
   const projectData = useMemo(() => {
+    const hours = hoursCache[currentYear] || [];
     const map = {};
-    allHours.filter(h => new Date(h.service_date).getFullYear() === currentYear)
-      .forEach(h => {
+    hours.forEach(h => {
         if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
         map[h.project_name].hours += h.hours;
         const mName = h.member_name || `Member #${h.member_id}`;
@@ -128,15 +152,15 @@ export default function Reports() {
           .sort((a, b) => b.hours - a.hours),
       }))
       .sort((a, b) => b.hours - a.hours);
-  }, [allHours]);
+  }, [hoursCache]);
 
   const projectTotal = projectData.reduce((s, p) => s + p.hours, 0);
 
   // ── Trends ────────────────────────────────────────────────────
   const trendData = useMemo(() => {
+    const hours = hoursCache[trendYear] || [];
     const map = {};
-    allHours.filter(h => new Date(h.service_date).getFullYear() === trendYear)
-      .forEach(h => {
+    hours.forEach(h => {
         if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
         map[h.project_name].hours += h.hours;
         const mName = h.member_name || `Member #${h.member_id}`;
@@ -151,11 +175,11 @@ export default function Reports() {
           .sort((a, b) => b.hours - a.hours),
       }))
       .sort((a, b) => b.hours - a.hours);
-  }, [allHours, trendYear]);
+  }, [hoursCache, trendYear]);
 
   // ── Members & Households ──────────────────────────────────────
   const memberData = useMemo(() => {
-    const filtered = allHours.filter(h => new Date(h.service_date).getFullYear() === memberYear);
+    const filtered = hoursCache[memberYear] || [];
     const memberMap = {};
     filtered.forEach(h => { memberMap[h.member_id] = (memberMap[h.member_id] || 0) + h.hours; });
 
@@ -190,7 +214,7 @@ export default function Reports() {
       .sort((a, b) => b.hours - a.hours);
 
     return { individuals, householdRows };
-  }, [allHours, users, households, memberYear]);
+  }, [hoursCache, users, households, memberYear]);
 
   const toggleSet = (setter, id) => {
     setter(prev => {
@@ -359,6 +383,9 @@ export default function Reports() {
               </select>
             </div>
 
+            {loadingYear === trendYear ? (
+              <div className="card"><span className="spinner" /></div>
+            ) : (<>
             <div className="card" style={{ marginBottom:'1.5rem' }}>
               <div className="card-header">
                 <h3>Project Hours — {trendYear}</h3>
@@ -417,6 +444,7 @@ export default function Reports() {
                 </table>
               </div>
             </div>
+          </>)}
           </>
         )}
 
@@ -429,6 +457,9 @@ export default function Reports() {
               </select>
             </div>
 
+            {loadingYear === memberYear ? (
+              <div className="card"><span className="spinner" /></div>
+            ) : (<>
             {/* Households with drill-down */}
             <div className="card" style={{ marginBottom:'1.5rem' }}>
               <div className="card-header">
@@ -532,6 +563,7 @@ export default function Reports() {
                   </div>
                 )}
             </div>
+          </>)}
           </>
         )}
 
