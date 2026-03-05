@@ -39,13 +39,9 @@ export default function AdminHours() {
         getHours({ status_filter: 'approved', year: new Date().getFullYear() }),
         getProjects(),
       ]);
-      console.log('[AdminHours] h.data type:', typeof h.data, 'length:', h.data?.length, 'first:', h.data?.[0]);
-      console.log('[AdminHours] p.data type:', typeof p.data, 'length:', p.data?.length);
       setApproved(h.data);
       setProjects(p.data);
-    } catch (e) {
-      console.error('[AdminHours] loadApproved CAUGHT ERROR:', e);
-    }
+    } catch (e) { console.error(e); }
     finally { setLoadingA(false); }
   };
 
@@ -113,7 +109,6 @@ export default function AdminHours() {
     h.member_name.toLowerCase().includes(search.toLowerCase()) ||
     h.project_name.toLowerCase().includes(search.toLowerCase())
   );
-  console.log('[AdminHours RENDER] tab:', tab, 'approved:', approved.length, 'filtered:', filtered.length, 'loadingA:', loadingA, 'search:', JSON.stringify(search));
 
   // ── Render ─────────────────────────────────────────────────
   return (
