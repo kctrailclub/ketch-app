@@ -202,7 +202,7 @@ export default function AdminHours() {
             <div className="page-header">
               <div className="page-header-text">
                 <h1>Approved Hours</h1>
-                <p>Search and edit approved hour records for {new Date().getFullYear()}</p>
+                <p>{approved.length} approved record{approved.length !== 1 ? 's' : ''} for {new Date().getFullYear()}</p>
               </div>
               <button className="btn btn-ghost" onClick={loadApproved} disabled={loadingA}>
                 {loadingA ? 'Refreshing…' : 'Refresh'}
