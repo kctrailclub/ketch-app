@@ -46,7 +46,7 @@ export default function AdminHours() {
   };
 
   useEffect(() => { loadPending(); }, []);
-  useEffect(() => { if (tab === 'approved' && approved.length === 0 && !loadingA) loadApproved(); }, [tab]);
+  useEffect(() => { if (tab === 'approved') loadApproved(); }, [tab]);
 
   // ── Pending actions ────────────────────────────────────────
   const openModal  = (hour, action) => { setModal({ hour, action }); setNote(''); };
