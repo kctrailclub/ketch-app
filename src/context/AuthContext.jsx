@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getMe } from '../api/client';
+import { getMe, logout as logoutApi } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -30,6 +30,8 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = () => {
+    const rt = localStorage.getItem('refresh_token');
+    if (rt) logoutApi(rt).catch(() => {});
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     setUser(null);

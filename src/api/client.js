@@ -43,6 +43,9 @@ export const changePassword = (current_password, new_password) =>
 export const forgotPassword = (email) =>
   api.post('/auth/forgot-password', { email });
 
+export const logout = (refresh_token) =>
+  api.post('/auth/logout', { refresh_token });
+
 // ── Users ─────────────────────────────────────────────────────
 export const getUsers = () =>
   api.get('/users/');
