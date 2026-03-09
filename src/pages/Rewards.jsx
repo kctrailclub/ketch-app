@@ -48,6 +48,7 @@ export default function Rewards() {
     try {
       const res = await sendRewardEmails(emailType, householdIds);
       setResult(res.data);
+      await load();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to send emails.');
     } finally { setSending(null); }
@@ -160,15 +161,32 @@ export default function Rewards() {
                 Reached {threshold}+ hours in {year}
               </p>
             </div>
-            {qualified.length > 0 && (
-              <button
-                className="btn btn-primary"
-                disabled={sending === 'reward'}
-                onClick={() => handleSend('reward', qualified.map(h => h.household_id))}
-              >
-                {sending === 'reward' ? 'Sending…' : `Send All (${qualified.length})`}
-              </button>
-            )}
+            {qualified.length > 0 && (() => {
+              const unsent = qualified.filter(h => !h.last_sent);
+              const sent   = qualified.filter(h =>  h.last_sent);
+              return (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {unsent.length > 0 && (
+                    <button
+                      className="btn btn-primary"
+                      disabled={sending === 'reward'}
+                      onClick={() => handleSend('reward', unsent.map(h => h.household_id))}
+                    >
+                      {sending === 'reward' ? 'Sending…' : `Send All (${unsent.length})`}
+                    </button>
+                  )}
+                  {sent.length > 0 && (
+                    <button
+                      className="btn btn-secondary"
+                      disabled={sending === 'reward'}
+                      onClick={() => handleSend('reward', sent.map(h => h.household_id))}
+                    >
+                      {sending === 'reward' ? 'Sending…' : `Resend All (${sent.length})`}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {qualified.length === 0 ? (
@@ -186,14 +204,20 @@ export default function Rewards() {
                       <td>{hh.primary_name}</td>
                       <td>{hh.primary_email}</td>
                       <td><span className="badge badge-approved">{hh.hours.toFixed(1)}h</span></td>
-                      <td>
+                      <td style={{ textAlign: 'right' }}>
                         <button
                           className="btn btn-secondary btn-sm"
                           disabled={sending === 'reward'}
                           onClick={() => handleSend('reward', [hh.household_id])}
                         >
-                          Send
+                          {hh.last_sent ? 'Resend' : 'Send'}
                         </button>
+                        {hh.last_sent && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Sent{hh.last_sent.sent_by_name ? ` by ${hh.last_sent.sent_by_name}` : ''} on{' '}
+                            {new Date(hh.last_sent.sent_at).toLocaleDateString()}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -212,15 +236,32 @@ export default function Rewards() {
                 Between {Math.round(threshold / 2)} and {threshold - 1} hours in {year}
               </p>
             </div>
-            {close.length > 0 && (
-              <button
-                className="btn btn-secondary"
-                disabled={sending === 'nudge'}
-                onClick={() => handleSend('nudge', close.map(h => h.household_id))}
-              >
-                {sending === 'nudge' ? 'Sending…' : `Send All (${close.length})`}
-              </button>
-            )}
+            {close.length > 0 && (() => {
+              const unsent = close.filter(h => !h.last_sent);
+              const sent   = close.filter(h =>  h.last_sent);
+              return (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {unsent.length > 0 && (
+                    <button
+                      className="btn btn-secondary"
+                      disabled={sending === 'nudge'}
+                      onClick={() => handleSend('nudge', unsent.map(h => h.household_id))}
+                    >
+                      {sending === 'nudge' ? 'Sending…' : `Send All (${unsent.length})`}
+                    </button>
+                  )}
+                  {sent.length > 0 && (
+                    <button
+                      className="btn btn-secondary"
+                      disabled={sending === 'nudge'}
+                      onClick={() => handleSend('nudge', sent.map(h => h.household_id))}
+                    >
+                      {sending === 'nudge' ? 'Sending…' : `Resend All (${sent.length})`}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {close.length === 0 ? (
@@ -241,14 +282,20 @@ export default function Rewards() {
                       <td>
                         <span className="badge badge-pending">{hh.remaining.toFixed(1)}h to go</span>
                       </td>
-                      <td>
+                      <td style={{ textAlign: 'right' }}>
                         <button
                           className="btn btn-secondary btn-sm"
                           disabled={sending === 'nudge'}
                           onClick={() => handleSend('nudge', [hh.household_id])}
                         >
-                          Send
+                          {hh.last_sent ? 'Resend' : 'Send'}
                         </button>
+                        {hh.last_sent && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Sent{hh.last_sent.sent_by_name ? ` by ${hh.last_sent.sent_by_name}` : ''} on{' '}
+                            {new Date(hh.last_sent.sent_at).toLocaleDateString()}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
