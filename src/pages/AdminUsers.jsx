@@ -96,7 +96,7 @@ export default function AdminUsers() {
     }
   };
 
-  const uninvited = users.filter(u => u.is_active && u.invite_pending && !u.last_login);
+  const uninvited = users.filter(u => u.is_active && !u.last_login);
 
   const handleBulkInvite = async () => {
     if (!window.confirm(
