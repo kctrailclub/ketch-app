@@ -97,6 +97,13 @@ export default function Nav() {
                 >
                   Change Password
                 </Link>
+                <a
+                  href="mailto:info@kctrailclub.org"
+                  className="nav-dropdown-item"
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  Contact Admin
+                </a>
                 <div className="nav-dropdown-divider" />
                 <button
                   className="nav-dropdown-item"
@@ -139,6 +146,13 @@ export default function Nav() {
           >
             Change Password
           </Link>
+          <a
+            href="mailto:info@kctrailclub.org"
+            className="nav-mobile-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            Contact Admin
+          </a>
           <button className="btn btn-ghost btn-sm" onClick={handleSignOut} style={{margin:'0.5rem 1rem'}}>
             Sign out
           </button>

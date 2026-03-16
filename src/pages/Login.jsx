@@ -107,9 +107,6 @@ export default function Login() {
         <Link to="/register" className="login-forgot" style={{ marginTop:'0.5rem' }}>
           Don't have an account? Request one
         </Link>
-        <a href="mailto:info@kctrailclub.org" className="login-forgot" style={{ marginTop:'1.5rem', fontSize:'0.78rem' }}>
-          Need help? Contact info@kctrailclub.org
-        </a>
       </div>
     </div>
   );

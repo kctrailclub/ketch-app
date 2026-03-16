@@ -70,9 +70,6 @@ export default function ForgotPassword() {
               </button>
             </form>
             <Link to="/login" className="login-forgot">Back to Sign In</Link>
-            <a href="mailto:info@kctrailclub.org" className="login-forgot" style={{ marginTop:'1.5rem', fontSize:'0.78rem' }}>
-              Need help? Contact info@kctrailclub.org
-            </a>
           </>
         )}
       </div>
