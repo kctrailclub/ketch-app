@@ -24,7 +24,7 @@ export default function SetPassword() {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Something went wrong.');
+      setError(err.response?.data?.detail || 'Something went wrong. Please try again or contact info@kctrailclub.org for help.');
     } finally {
       setLoading(false);
     }

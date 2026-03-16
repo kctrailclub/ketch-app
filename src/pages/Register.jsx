@@ -18,7 +18,7 @@ export default function Register() {
       await submitRegistration(form);
       setSuccess(true);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Something went wrong. Please try again.');
+      setError(err.response?.data?.detail || 'Something went wrong. Please try again or contact info@kctrailclub.org for help.');
     } finally { setLoading(false); }
   };
 
