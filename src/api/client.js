@@ -62,6 +62,9 @@ export const updateUser = (id, data) =>
 export const resendInvite = (id) =>
   api.post(`/users/${id}/resend-invite`);
 
+export const sendAllInvites = () =>
+  api.post('/users/bulk-invite');
+
 // ── Hours ─────────────────────────────────────────────────────
 export const getHours = (params) =>
   api.get('/hours/', { params });

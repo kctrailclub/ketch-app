@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getUsers, createUser, updateUser, resendInvite, getHouseholds, getRegistrations, approveRegistration, rejectRegistration } from '../api/client';
+import { getUsers, createUser, updateUser, resendInvite, sendAllInvites, getHouseholds, getRegistrations, approveRegistration, rejectRegistration } from '../api/client';
 
 export default function AdminUsers() {
   const [users,         setUsers]         = useState([]);
@@ -11,6 +11,8 @@ export default function AdminUsers() {
   const [error,   setError]   = useState('');
   const [saving,  setSaving]  = useState(false);
   const [search,  setSearch]  = useState('');
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkResult,  setBulkResult]  = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -94,6 +96,25 @@ export default function AdminUsers() {
     }
   };
 
+  const uninvited = users.filter(u => u.is_active && u.invite_pending && !u.last_login);
+
+  const handleBulkInvite = async () => {
+    if (!window.confirm(
+      `This will send invite emails to all ${uninvited.length} member${uninvited.length !== 1 ? 's' : ''} who haven't logged in yet. Continue?`
+    )) return;
+    setBulkSending(true);
+    setBulkResult(null);
+    try {
+      const res = await sendAllInvites();
+      setBulkResult(res.data);
+      await load();
+    } catch (err) {
+      setBulkResult({ detail: err.response?.data?.detail || 'Failed to send invites.', failed: [] });
+    } finally {
+      setBulkSending(false);
+    }
+  };
+
   const filtered = users.filter(u =>
     `${u.firstname} ${u.lastname} ${u.email}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -114,9 +135,30 @@ export default function AdminUsers() {
               onChange={e => setSearch(e.target.value)}
               style={{ width:220 }}
             />
+            {uninvited.length > 0 && (
+              <button
+                className="btn btn-secondary"
+                onClick={handleBulkInvite}
+                disabled={bulkSending}
+              >
+                {bulkSending ? 'Sending…' : `Send All Invites (${uninvited.length})`}
+              </button>
+            )}
             <button className="btn btn-primary" onClick={openCreate}>+ Add Member</button>
           </div>
         </div>
+
+        {bulkResult && (
+          <div className={`alert ${bulkResult.failed?.length ? 'alert-info' : 'alert-success'}`} style={{ marginBottom:'1.5rem' }}>
+            {bulkResult.detail}
+            {bulkResult.failed?.length > 0 && (
+              <ul style={{ marginTop:'0.5rem', paddingLeft:'1.25rem' }}>
+                {bulkResult.failed.map((f, i) => <li key={i} style={{ fontSize:'0.85rem' }}>{f}</li>)}
+              </ul>
+            )}
+            <button className="btn btn-ghost btn-sm" style={{ marginLeft:'1rem' }} onClick={() => setBulkResult(null)}>Dismiss</button>
+          </div>
+        )}
 
         {/* Pending Registration Requests */}
         {registrations.length > 0 && (
