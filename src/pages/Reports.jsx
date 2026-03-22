@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { getHours, getUsers, getHouseholds, queryReports, getAuditLogs } from '../api/client';
+import { getHours, getUsers, getHouseholds, queryReports, getAuditLogs, getRewardTags } from '../api/client';
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => currentYear - i);
@@ -77,6 +77,7 @@ export default function Reports() {
   const [expandedHH,   setExpandedHH]   = useState(new Set());
   const [expandedProj, setExpandedProj] = useState(new Set());
   const [expandedTrend, setExpandedTrend] = useState(new Set());
+  const [tagsCache,    setTagsCache]    = useState({});  // { year: [{household_id, tag_number, ...}] }
 
   // Ask a Question tab state
   const [nlQuestion,  setNlQuestion]  = useState('');
@@ -132,6 +133,14 @@ export default function Reports() {
   // Fetch year data on demand when user changes year selectors
   useEffect(() => { fetchYear(trendYear); }, [trendYear]);
   useEffect(() => { fetchYear(memberYear); }, [memberYear]);
+
+  // Fetch reward tags for memberYear
+  useEffect(() => {
+    if (tagsCache[memberYear]) return;
+    getRewardTags(memberYear).then(res => {
+      setTagsCache(prev => ({ ...prev, [memberYear]: res.data }));
+    }).catch(() => {});
+  }, [memberYear]);
 
   // ── Projects YTD (always current year) ───────────────────────
   const projectData = useMemo(() => {
@@ -203,6 +212,11 @@ export default function Reports() {
       hhMap[ind.household_id].members.push(ind);
     });
 
+    // Build tag lookup for the selected year
+    const yearTags = tagsCache[memberYear] || [];
+    const tagLookup = {};
+    yearTags.forEach(t => { tagLookup[t.household_id] = t.tag_number; });
+
     const householdRows = Object.entries(hhMap)
       .map(([id, d]) => ({
         household_id: parseInt(id),
@@ -210,11 +224,12 @@ export default function Reports() {
         hours: parseFloat(d.hours.toFixed(2)),
         member_count: d.members.length,
         members: d.members.sort((a, b) => b.hours - a.hours),
+        tag_number: tagLookup[parseInt(id)] || null,
       }))
       .sort((a, b) => b.hours - a.hours);
 
     return { individuals, householdRows };
-  }, [hoursCache, users, households, memberYear]);
+  }, [hoursCache, users, households, memberYear, tagsCache]);
 
   const toggleSet = (setter, id) => {
     setter(prev => {
@@ -475,6 +490,7 @@ export default function Reports() {
                       { label:'Household',       value: r => r.name },
                       { label:'Active Members',  value: r => r.member_count },
                       { label:'Total Hours',     value: r => r.hours },
+                      { label:'Tag #',           value: r => r.tag_number || '' },
                     ],
                     memberData.householdRows
                   )} />
@@ -486,7 +502,7 @@ export default function Reports() {
                   <div className="table-wrapper">
                     <table>
                       <thead>
-                        <tr><th>#</th><th>Household</th><th>Members</th><th>Total Hours</th><th></th></tr>
+                        <tr><th>#</th><th>Household</th><th>Members</th><th>Total Hours</th><th>Tag #</th><th></th></tr>
                       </thead>
                       <tbody>
                         {memberData.householdRows.map((hh, i) => (
@@ -500,6 +516,7 @@ export default function Reports() {
                               <td><strong>{hh.name}</strong></td>
                               <td>{hh.member_count}</td>
                               <td><strong>{hh.hours.toFixed(1)}</strong></td>
+                              <td>{hh.tag_number || <span style={{ color:'var(--text-muted)' }}>—</span>}</td>
                               <td style={{ width:32, textAlign:'center', color:'var(--text-muted)', fontSize:'0.8rem' }}>
                                 {expandedHH.has(hh.household_id) ? '▲' : '▼'}
                               </td>
@@ -512,6 +529,7 @@ export default function Reports() {
                                 </td>
                                 <td />
                                 <td style={{ fontSize:'0.88rem', color:'var(--text-secondary)' }}>{m.hours.toFixed(1)}</td>
+                                <td />
                                 <td />
                               </tr>
                             ))}

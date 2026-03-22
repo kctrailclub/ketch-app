@@ -137,6 +137,9 @@ export const sendRewardEmails = (email_type, household_ids) =>
 
 export const saveRewardTag = (household_id, year, tag_number) =>
   api.post('/settings/rewards/tag', { household_id, year, tag_number });
+
+export const getRewardTags = (year) =>
+  api.get('/settings/rewards/tags', { params: { year } });
 export const getNotifications = (unreadOnly = false) =>
   api.get('/notifications/', { params: { unread_only: unreadOnly } });
 
