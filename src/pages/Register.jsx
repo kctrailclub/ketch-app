@@ -35,9 +35,20 @@ export default function Register() {
 
         {success ? (
           <>
-            <p className="login-subtitle" style={{ marginBottom:'1.5rem' }}>
+            <p className="login-subtitle" style={{ marginBottom:'1rem' }}>
               Your request has been submitted! An admin will review it and send you an invite email once approved.
             </p>
+            <div style={{
+              background:'var(--bg-muted, #f3f4f6)', borderRadius:'var(--radius-sm, 8px)',
+              padding:'1rem', marginBottom:'1.5rem', textAlign:'left', fontSize:'0.9rem',
+              border:'1px solid var(--border, #e5e7eb)',
+            }}>
+              <strong>Before you can volunteer, please complete the KCTC Volunteer Waiver on the{' '}
+              <a href="https://ken-carylranch.org" target="_blank" rel="noopener noreferrer">
+                Ken-Caryl Ranch website
+              </a>.</strong>{' '}
+              Your registration will be reviewed once your waiver is on file.
+            </div>
             <Link to="/login" className="btn btn-primary btn-lg" style={{ width:'100%', justifyContent:'center' }}>
               Back to Sign In
             </Link>
