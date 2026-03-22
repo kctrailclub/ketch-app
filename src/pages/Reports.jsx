@@ -77,6 +77,8 @@ export default function Reports() {
   const [expandedHH,   setExpandedHH]   = useState(new Set());
   const [expandedProj, setExpandedProj] = useState(new Set());
   const [expandedTrend, setExpandedTrend] = useState(new Set());
+  const [youthYear,    setYouthYear]    = useState(currentYear);
+  const [expandedYouth, setExpandedYouth] = useState(new Set());
   const [tagsCache,    setTagsCache]    = useState({});  // { year: [{household_id, tag_number, ...}] }
 
   // Ask a Question tab state
@@ -132,6 +134,7 @@ export default function Reports() {
 
   // Fetch year data on demand when user changes year selectors
   useEffect(() => { fetchYear(trendYear); }, [trendYear]);
+  useEffect(() => { fetchYear(youthYear); }, [youthYear]);
   useEffect(() => { fetchYear(memberYear); }, [memberYear]);
 
   // Fetch reward tags for memberYear
@@ -185,6 +188,33 @@ export default function Reports() {
       }))
       .sort((a, b) => b.hours - a.hours);
   }, [hoursCache, trendYear]);
+
+  // ── Youth Projects ───────────────────────────────────────────
+  const youthUserIds = useMemo(() => {
+    const ids = new Set();
+    users.forEach(u => { if (u.youth) ids.add(u.user_id); });
+    return ids;
+  }, [users]);
+
+  const youthData = useMemo(() => {
+    const hours = (hoursCache[youthYear] || []).filter(h => youthUserIds.has(h.member_id));
+    const map = {};
+    hours.forEach(h => {
+      if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
+      map[h.project_name].hours += h.hours;
+      const mName = h.member_name || `Member #${h.member_id}`;
+      map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
+    });
+    return Object.entries(map)
+      .map(([name, d]) => ({
+        name,
+        hours: parseFloat(d.hours.toFixed(2)),
+        members: Object.entries(d.members)
+          .map(([mName, mHours]) => ({ name: mName, hours: parseFloat(mHours.toFixed(2)) }))
+          .sort((a, b) => b.hours - a.hours),
+      }))
+      .sort((a, b) => b.hours - a.hours);
+  }, [hoursCache, youthYear, youthUserIds]);
 
   // ── Members & Households ──────────────────────────────────────
   const memberData = useMemo(() => {
@@ -278,6 +308,7 @@ export default function Reports() {
   const tabs = [
     { id:'projects', label:'Projects YTD'        },
     { id:'trends',   label:'Project Trends'       },
+    { id:'youth',    label:'Youth Projects'        },
     { id:'members',  label:'Members & Households' },
     { id:'query',    label:'Ask a Question'        },
     { id:'activity', label:'Activity Log'          },
@@ -445,6 +476,80 @@ export default function Reports() {
                           </td>
                         </tr>
                         {expandedTrend.has(p.name) && p.members.map(m => (
+                          <tr key={m.name} style={{ background:'var(--fern)' }}>
+                            <td style={{ paddingLeft:'2rem', fontSize:'0.88rem', color:'var(--text-secondary)' }}>
+                              ↳ {m.name}
+                            </td>
+                            <td style={{ fontSize:'0.88rem', color:'var(--text-secondary)' }}>{m.hours.toFixed(1)}</td>
+                            <td />
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>)}
+          </>
+        )}
+
+        {/* ── Youth Projects ──────────────────────────────────── */}
+        {tab === 'youth' && (
+          <>
+            <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'1.5rem' }}>
+              <select value={youthYear} onChange={e => setYouthYear(Number(e.target.value))} style={{ width:'auto' }}>
+                {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+
+            {loadingYear === youthYear ? (
+              <div className="card"><span className="spinner" /></div>
+            ) : (<>
+            <div className="card" style={{ marginBottom:'1.5rem' }}>
+              <div className="card-header">
+                <h3>Youth Project Hours — {youthYear}</h3>
+                <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
+                  {youthData.reduce((s, p) => s + p.hours, 0).toFixed(1)} total hours · {youthUserIds.size} youth member{youthUserIds.size !== 1 ? 's' : ''}
+                </span>
+              </div>
+              {youthData.length === 0
+                ? <div className="empty-state"><p>No approved hours from youth members for {youthYear}.</p></div>
+                : <BarChart data={youthData} />}
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <h3>All Youth Projects — {youthYear}</h3>
+                <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                  <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>click row to expand</span>
+                  <ExportButton onClick={() => exportCSV(
+                    `youth-projects-${youthYear}.csv`,
+                    [
+                      { label:'Project', value: r => r.name },
+                      { label:'Hours',   value: r => r.hours },
+                    ],
+                    youthData
+                  )} />
+                </div>
+              </div>
+              <div className="table-wrapper">
+                <table>
+                  <thead><tr><th>Project</th><th>Hours</th><th></th></tr></thead>
+                  <tbody>
+                    {youthData.map(p => (
+                      <React.Fragment key={p.name}>
+                        <tr
+                          onClick={() => toggleSet(setExpandedYouth, p.name)}
+                          style={{ cursor:'pointer' }}
+                        >
+                          <td><strong>{p.name}</strong></td>
+                          <td>{p.hours.toFixed(1)}</td>
+                          <td style={{ width:32, textAlign:'center', color:'var(--text-muted)', fontSize:'0.8rem' }}>
+                            {expandedYouth.has(p.name) ? '▲' : '▼'}
+                          </td>
+                        </tr>
+                        {expandedYouth.has(p.name) && p.members.map(m => (
                           <tr key={m.name} style={{ background:'var(--fern)' }}>
                             <td style={{ paddingLeft:'2rem', fontSize:'0.88rem', color:'var(--text-secondary)' }}>
                               ↳ {m.name}
