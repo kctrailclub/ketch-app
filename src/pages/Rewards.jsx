@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getRewardSettings, updateRewardSettings, sendRewardEmails } from '../api/client';
+import { getRewardSettings, updateRewardSettings, sendRewardEmails, saveRewardTag } from '../api/client';
 
 export default function Rewards() {
   const [data,       setData]       = useState(null);
@@ -10,12 +10,20 @@ export default function Rewards() {
   const [error,      setError]      = useState('');
   const [form,       setForm]       = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tagInputs, setTagInputs] = useState({});  // { household_id: value }
+  const [savingTag, setSavingTag] = useState(null); // household_id being saved
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await getRewardSettings();
       setData(res.data);
+      // Initialize tag inputs from existing data
+      const tags = {};
+      (res.data.qualified || []).forEach(hh => {
+        if (hh.tag) tags[hh.household_id] = hh.tag.tag_number;
+      });
+      setTagInputs(prev => ({ ...tags, ...prev }));
       setForm({
         reward_threshold:     res.data.threshold,
         reward_email_subject: res.data.reward_email_subject,
@@ -52,6 +60,18 @@ export default function Rewards() {
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to send emails.');
     } finally { setSending(null); }
+  };
+
+  const handleSaveTag = async (householdId) => {
+    const tagNum = parseInt(tagInputs[householdId]);
+    if (!tagNum || tagNum <= 0) return;
+    setSavingTag(householdId);
+    try {
+      await saveRewardTag(householdId, data.year, tagNum);
+      await load();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to save tag.');
+    } finally { setSavingTag(null); }
   };
 
   if (loading) return <div className="loading-page"><span className="spinner" /></div>;
@@ -195,7 +215,7 @@ export default function Rewards() {
             <div className="table-wrapper">
               <table>
                 <thead>
-                  <tr><th>Household</th><th>Contact</th><th>Email</th><th>Hours</th><th></th></tr>
+                  <tr><th>Household</th><th>Contact</th><th>Email</th><th>Hours</th><th>Tag #</th><th></th></tr>
                 </thead>
                 <tbody>
                   {qualified.map(hh => (
@@ -204,6 +224,31 @@ export default function Rewards() {
                       <td>{hh.primary_name}</td>
                       <td>{hh.primary_email}</td>
                       <td><span className="badge badge-approved">{hh.hours.toFixed(1)}h</span></td>
+                      <td>
+                        <div style={{ display:'flex', gap:'0.4rem', alignItems:'center' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="#"
+                            value={tagInputs[hh.household_id] || ''}
+                            onChange={e => setTagInputs(prev => ({ ...prev, [hh.household_id]: e.target.value }))}
+                            style={{ width:70 }}
+                          />
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            disabled={savingTag === hh.household_id || !tagInputs[hh.household_id]}
+                            onClick={() => handleSaveTag(hh.household_id)}
+                          >
+                            {savingTag === hh.household_id ? '…' : hh.tag ? 'Update' : 'Save'}
+                          </button>
+                        </div>
+                        {hh.tag && (
+                          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'0.2rem' }}>
+                            {hh.tag.assigned_by_name ? `By ${hh.tag.assigned_by_name}` : 'Assigned'} on{' '}
+                            {new Date(hh.tag.assigned_at).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td>
                       <td style={{ textAlign: 'right' }}>
                         <button
                           className="btn btn-secondary btn-sm"
