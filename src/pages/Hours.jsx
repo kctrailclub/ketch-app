@@ -57,10 +57,6 @@ export function SubmitHours() {
           <form onSubmit={handleSubmit}>
             {error && <div className="alert alert-error">{error}</div>}
 
-            <p style={{ fontSize:'0.88rem', color:'var(--text-muted)', marginBottom:'1.25rem' }}>
-              Please enter actual hours spent in the field or working on a project.
-            </p>
-
             <div className="form-group">
               <label htmlFor="project">Project</label>
               <select
@@ -101,6 +97,9 @@ export function SubmitHours() {
                 placeholder="e.g. 2.5"
                 required
               />
+              <p style={{ fontSize:'0.85rem', color:'var(--text-muted)', fontWeight:700, marginTop:'0.35rem' }}>
+                Please enter actual hours spent in the field or working on a project.
+              </p>
             </div>
 
             <div className="form-group">
