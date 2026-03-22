@@ -19,12 +19,12 @@ export default function AdminProjects() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
-    setForm({ name:'', notes:'', project_type:'ongoing', end_date:'', youth_credit_pct: 50 });
+    setForm({ name:'', notes:'', project_type:'ongoing', end_date:'', youth_credit_pct: 50, admin_only: false });
     setModal('create'); setError('');
   };
 
   const openEdit = (p) => {
-    setForm({ name:p.name, notes:p.notes||'', project_type:p.project_type, end_date:p.end_date||'', youth_credit_pct: p.youth_credit_pct ?? 50 });
+    setForm({ name:p.name, notes:p.notes||'', project_type:p.project_type, end_date:p.end_date||'', youth_credit_pct: p.youth_credit_pct ?? 50, admin_only: !!p.admin_only });
     setModal(p); setError('');
   };
 
@@ -64,7 +64,7 @@ export default function AdminProjects() {
             <div className="table-wrapper">
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Type</th><th>End Date</th><th>Youth Credit</th><th>Notes</th><th>Actions</th></tr>
+                  <tr><th>Name</th><th>Type</th><th>Visibility</th><th>End Date</th><th>Youth Credit</th><th>Notes</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {projects.map(p => (
@@ -73,6 +73,10 @@ export default function AdminProjects() {
                       <td><span className={`badge badge-${p.project_type === 'ongoing' ? 'ongoing' : 'one-time'}`}>
                         {p.project_type === 'ongoing' ? 'Ongoing' : 'One-time'}
                       </span></td>
+                      <td>{p.admin_only
+                        ? <span className="badge badge-admin">Admin Only</span>
+                        : <span className="badge badge-approved">All Members</span>}
+                      </td>
                       <td>{p.end_date ? new Date(p.end_date).toLocaleDateString() : '—'}</td>
                       <td>{p.youth_credit_pct}%</td>
                       <td style={{maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
@@ -123,6 +127,15 @@ export default function AdminProjects() {
                   onChange={e => set('youth_credit_pct', Number(e.target.value))} />
                 <span style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginTop:'0.25rem', display:'block' }}>
                   Percentage of hours credited for youth members (default 50%)
+                </span>
+              </div>
+              <div style={{ margin:'0.5rem 0 1rem' }}>
+                <label style={{ display:'flex', alignItems:'center', gap:'0.4rem', cursor:'pointer', textTransform:'none', fontSize:'0.9rem', fontWeight:400 }}>
+                  <input type="checkbox" checked={!!form.admin_only} onChange={e => set('admin_only', e.target.checked)} style={{ width:'auto' }} />
+                  Admin Only
+                </label>
+                <span style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginTop:'0.25rem', display:'block' }}>
+                  Admin-only projects are hidden from members. Only admins can log hours to them.
                 </span>
               </div>
               <div className="form-group">
