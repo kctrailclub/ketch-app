@@ -19,12 +19,12 @@ export default function AdminProjects() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
-    setForm({ name:'', notes:'', project_type:'ongoing', end_date:'', youth_credit_pct: 50, admin_only: false });
+    setForm({ name:'', notes:'', project_type:'ongoing', end_date:'', member_credit_pct: 100, admin_only: false });
     setModal('create'); setError('');
   };
 
   const openEdit = (p) => {
-    setForm({ name:p.name, notes:p.notes||'', project_type:p.project_type, end_date:p.end_date||'', youth_credit_pct: p.youth_credit_pct ?? 50, admin_only: !!p.admin_only });
+    setForm({ name:p.name, notes:p.notes||'', project_type:p.project_type, end_date:p.end_date||'', member_credit_pct: p.member_credit_pct ?? 100, admin_only: !!p.admin_only });
     setModal(p); setError('');
   };
 
@@ -64,7 +64,7 @@ export default function AdminProjects() {
             <div className="table-wrapper">
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Type</th><th>Visibility</th><th>End Date</th><th>Youth Credit</th><th>Notes</th><th>Actions</th></tr>
+                  <tr><th>Name</th><th>Type</th><th>Visibility</th><th>End Date</th><th>Credit %</th><th>Notes</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {projects.map(p => (
@@ -78,7 +78,7 @@ export default function AdminProjects() {
                         : <span className="badge badge-approved">All Members</span>}
                       </td>
                       <td>{p.end_date ? new Date(p.end_date).toLocaleDateString() : '—'}</td>
-                      <td>{p.youth_credit_pct}%</td>
+                      <td>{p.member_credit_pct}%</td>
                       <td style={{maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                         {p.notes || '—'}
                       </td>
@@ -121,12 +121,12 @@ export default function AdminProjects() {
                 </div>
               )}
               <div className="form-group">
-                <label>Youth Credit %</label>
+                <label>Member Credit %</label>
                 <input type="number" min="0" max="100" step="5"
-                  value={form.youth_credit_pct}
-                  onChange={e => set('youth_credit_pct', Number(e.target.value))} />
+                  value={form.member_credit_pct}
+                  onChange={e => set('member_credit_pct', Number(e.target.value))} />
                 <span style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginTop:'0.25rem', display:'block' }}>
-                  Percentage of hours credited for youth members (default 50%)
+                  Percentage of hours credited for members (default 100%)
                 </span>
               </div>
               <div style={{ margin:'0.5rem 0 1rem' }}>

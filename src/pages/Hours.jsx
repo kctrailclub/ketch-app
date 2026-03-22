@@ -201,11 +201,10 @@ export function MyHours() {
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
   const approvedHours = hours.filter(h => h.status === 'approved');
   const total = approvedHours.reduce((s, h) => s + h.hours, 0);
-  const hasYouthHours = approvedHours.some(h => h.is_youth);
   const creditedTotal = approvedHours.reduce((s, h) => {
-    if (h.is_youth) return s + (h.hours * ((h.youth_credit_pct ?? 50) / 100));
-    return s + h.hours;
+    return s + (h.hours * ((h.member_credit_pct ?? 100) / 100));
   }, 0);
+  const hasDiscountedHours = approvedHours.some(h => (h.member_credit_pct ?? 100) < 100);
   const isFamily = hours.some(h => h.member_id !== user?.user_id);
 
   return (
@@ -254,9 +253,9 @@ export function MyHours() {
                   ? 'Congratulations! You have met the reward threshold!'
                   : `${(threshold - creditedTotal).toFixed(1)} more hours needed to reach the reward threshold.`}
               </p>
-              {hasYouthHours && (
+              {hasDiscountedHours && (
                 <p style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginTop:'0.5rem' }}>
-                  Youth hours are credited at the project's youth rate for reward qualification.
+                  Some projects have a member credit rate that adjusts hours for reward qualification.
                 </p>
               )}
             </div>
