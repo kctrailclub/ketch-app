@@ -8,6 +8,7 @@ export default function AdminProjects() {
   const [form,     setForm]     = useState({});
   const [error,    setError]    = useState('');
   const [saving,   setSaving]   = useState(false);
+  const [activeOnly, setActiveOnly] = useState(true);
 
   const load = async () => {
     setLoading(true);
@@ -48,6 +49,11 @@ export default function AdminProjects() {
     } finally { setSaving(false); }
   };
 
+  const today = new Date().toISOString().split('T')[0];
+  const filtered = activeOnly
+    ? projects.filter(p => !p.end_date || p.end_date >= today)
+    : projects;
+
   return (
     <div className="page">
       <div className="container">
@@ -59,6 +65,16 @@ export default function AdminProjects() {
           <button className="btn btn-primary" onClick={openCreate}>+ New Project</button>
         </div>
 
+        <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'1rem' }}>
+          <label style={{ display:'flex', alignItems:'center', gap:'0.4rem', cursor:'pointer', fontSize:'0.9rem', fontWeight:400 }}>
+            <input type="checkbox" checked={activeOnly} onChange={e => setActiveOnly(e.target.checked)} style={{ width:'auto' }} />
+            Active only
+          </label>
+          <span style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
+            {filtered.length} of {projects.length} projects
+          </span>
+        </div>
+
         <div className="card">
           {loading ? <span className="spinner" /> : (
             <div className="table-wrapper">
@@ -67,7 +83,7 @@ export default function AdminProjects() {
                   <tr><th>Name</th><th>Type</th><th>Visibility</th><th>End Date</th><th>Credit %</th><th>Notes</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {projects.map(p => (
+                  {filtered.map(p => (
                     <tr key={p.project_id}>
                       <td><strong>{p.name}</strong></td>
                       <td><span className={`badge badge-${p.project_type === 'ongoing' ? 'ongoing' : 'one-time'}`}>
