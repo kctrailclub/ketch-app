@@ -76,6 +76,7 @@ export default function AdminHours() {
     setEditForm({
       project_id:   hour.project_id,
       service_date: hour.service_date?.slice?.(0, 10) || hour.service_date,
+      credit_year:  hour.credit_year || new Date(hour.service_date).getFullYear(),
       hours:        hour.hours,
       notes:        hour.notes || '',
     });
@@ -89,6 +90,8 @@ export default function AdminHours() {
       if (editForm.project_id !== editModal.project_id)       data.project_id   = editForm.project_id;
       if (editForm.service_date !== (editModal.service_date?.slice?.(0, 10) || editModal.service_date))
                                                                 data.service_date = editForm.service_date;
+      const origCreditYear = editModal.credit_year || new Date(editModal.service_date).getFullYear();
+      if (Number(editForm.credit_year) !== origCreditYear)      data.credit_year  = Number(editForm.credit_year);
       if (Number(editForm.hours) !== editModal.hours)           data.hours        = Number(editForm.hours);
       if (editForm.notes !== (editModal.notes || ''))           data.notes        = editForm.notes;
 
@@ -174,7 +177,14 @@ export default function AdminHours() {
                         <tr key={h.hour_id}>
                           <td><strong>{h.member_name}</strong></td>
                           <td>{h.project_name}</td>
-                          <td>{new Date(h.service_date).toLocaleDateString()}</td>
+                          <td>
+                            {new Date(h.service_date).toLocaleDateString()}
+                            {h.credit_year && h.credit_year !== new Date(h.service_date).getFullYear() && (
+                              <div style={{ fontSize:'0.78rem', color:'var(--color-primary)', marginTop:'0.15rem' }}>
+                                Credited to {h.credit_year}
+                              </div>
+                            )}
+                          </td>
                           <td>{h.hours}</td>
                           <td style={{maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                             {h.notes || '—'}
@@ -244,7 +254,14 @@ export default function AdminHours() {
                         <tr key={h.hour_id}>
                           <td><strong>{h.member_name}</strong></td>
                           <td>{h.project_name}</td>
-                          <td>{new Date(h.service_date).toLocaleDateString()}</td>
+                          <td>
+                            {new Date(h.service_date).toLocaleDateString()}
+                            {h.credit_year && h.credit_year !== new Date(h.service_date).getFullYear() && (
+                              <div style={{ fontSize:'0.78rem', color:'var(--color-primary)', marginTop:'0.15rem' }}>
+                                Credited to {h.credit_year}
+                              </div>
+                            )}
+                          </td>
                           <td>{h.hours}</td>
                           <td style={{maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                             {h.notes || '—'}
@@ -331,6 +348,21 @@ export default function AdminHours() {
                 value={editForm.service_date}
                 onChange={e => setEditForm(f => ({ ...f, service_date: e.target.value }))}
               />
+            </div>
+
+            <div className="form-group">
+              <label>Credit Year</label>
+              <select
+                value={editForm.credit_year}
+                onChange={e => setEditForm(f => ({ ...f, credit_year: Number(e.target.value) }))}
+              >
+                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <span style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginTop:'0.25rem', display:'block' }}>
+                Which year these hours count toward in reports and rewards
+              </span>
             </div>
 
             <div className="form-group">

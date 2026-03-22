@@ -286,7 +286,14 @@ export function MyHours() {
                   {hours.map(h => (
                     <tr key={h.hour_id}>
                       <td><strong>{h.member_name}</strong></td>
-                      <td>{new Date(h.service_date).toLocaleDateString()}</td>
+                      <td>
+                        {new Date(h.service_date).toLocaleDateString()}
+                        {h.credit_year && h.credit_year !== new Date(h.service_date).getFullYear() && (
+                          <div style={{ fontSize:'0.78rem', color:'var(--color-primary)', marginTop:'0.15rem' }}>
+                            Credited to {h.credit_year}
+                          </div>
+                        )}
+                      </td>
                       <td><strong>{h.project_name}</strong></td>
                       <td>{h.hours}</td>
                       <td style={{maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>

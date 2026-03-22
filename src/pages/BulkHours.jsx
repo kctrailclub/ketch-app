@@ -8,8 +8,9 @@ export default function BulkHours() {
   const navigate   = useNavigate();
   const [projects, setProjects] = useState([]);
   const [users,    setUsers]    = useState([]);
-  const [project,  setProject]  = useState('');
-  const [date,     setDate]     = useState(new Date().toISOString().slice(0, 10));
+  const [project,    setProject]    = useState('');
+  const [date,       setDate]       = useState(new Date().toISOString().slice(0, 10));
+  const [creditYear, setCreditYear] = useState(new Date().getFullYear());
   const [rows,     setRows]     = useState([emptyRow(), emptyRow()]);
   const [error,    setError]    = useState('');
   const [saving,   setSaving]   = useState(false);
@@ -56,6 +57,7 @@ export default function BulkHours() {
           service_date: date,
           hours:        parseFloat(r.hours),
           notes:        r.notes || null,
+          credit_year:  creditYear !== new Date(date).getFullYear() ? creditYear : undefined,
         })
       ));
       setSuccess(filled.length);
@@ -94,7 +96,7 @@ export default function BulkHours() {
             {error && <div className="alert alert-error">{error}</div>}
 
             {/* Project + Date */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 120px', gap: '1rem', marginBottom: '1.5rem' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Project</label>
                 <select value={project} onChange={e => setProject(e.target.value)} required>
@@ -113,7 +115,20 @@ export default function BulkHours() {
                   required
                 />
               </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Credit Year</label>
+                <select value={creditYear} onChange={e => setCreditYear(Number(e.target.value))}>
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+            {creditYear !== new Date(date).getFullYear() && (
+              <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
+                Hours will be credited to <strong>{creditYear}</strong> in reports and rewards, even though the service date is in {new Date(date).getFullYear()}.
+              </div>
+            )}
 
             {/* Member rows */}
             <div style={{ marginBottom: '1rem' }}>
