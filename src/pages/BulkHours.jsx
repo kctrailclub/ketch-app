@@ -75,7 +75,7 @@ export default function BulkHours() {
 
   return (
     <div className="page">
-      <div className="container" style={{ maxWidth: 720 }}>
+      <div className="container" style={{ maxWidth: 780 }}>
         <div className="page-header">
           <div className="page-header-text">
             <h1>Log Crew Hours</h1>
@@ -95,17 +95,19 @@ export default function BulkHours() {
           <form onSubmit={handleSubmit}>
             {error && <div className="alert alert-error">{error}</div>}
 
-            {/* Project + Date */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 120px', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Project</label>
-                <select value={project} onChange={e => setProject(e.target.value)} required>
-                  <option value="">Select a project…</option>
-                  {projects.map(p => (
-                    <option key={p.project_id} value={p.project_id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
+            {/* Project */}
+            <div className="form-group">
+              <label>Project</label>
+              <select value={project} onChange={e => setProject(e.target.value)} required>
+                <option value="">Select a project…</option>
+                {projects.map(p => (
+                  <option key={p.project_id} value={p.project_id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date + Credit Year */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Service Date</label>
                 <input
@@ -124,18 +126,22 @@ export default function BulkHours() {
                 </select>
               </div>
             </div>
+
             {creditYear !== new Date(date).getFullYear() && (
-              <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
+              <div className="alert alert-info" style={{ marginBottom: '1.25rem' }}>
                 Hours will be credited to <strong>{creditYear}</strong> in reports and rewards, even though the service date is in {new Date(date).getFullYear()}.
               </div>
             )}
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid var(--border)', margin: '0.5rem 0 1.25rem' }} />
 
             {/* Member rows */}
             <div style={{ marginBottom: '1rem' }}>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 100px 1fr 36px',
-                gap: '0.5rem',
+                gridTemplateColumns: '2fr 80px 1.5fr 32px',
+                gap: '0.75rem',
                 marginBottom: '0.5rem',
                 padding: '0 0.25rem',
               }}>
@@ -145,12 +151,12 @@ export default function BulkHours() {
                 <span />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {rows.map((row, idx) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {rows.map((row) => (
                   <div key={row.id} style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 100px 1fr 36px',
-                    gap: '0.5rem',
+                    gridTemplateColumns: '2fr 80px 1.5fr 32px',
+                    gap: '0.75rem',
                     alignItems: 'center',
                   }}>
                     <select
@@ -186,7 +192,7 @@ export default function BulkHours() {
                       className="btn btn-ghost btn-sm"
                       onClick={() => removeRow(row.id)}
                       title="Remove row"
-                      style={{ padding: '0.4rem', color: 'var(--text-muted)' }}
+                      style={{ padding: '0.25rem', color: 'var(--text-muted)', minWidth: 0 }}
                     >
                       ✕
                     </button>
