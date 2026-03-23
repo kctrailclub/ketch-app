@@ -98,10 +98,11 @@ export default function AdminHours() {
       if (Object.keys(data).length === 0) { closeEdit(); return; }
 
       const res = await updateHours(editModal.hour_id, data);
-      setApproved(prev => prev.map(h => h.hour_id === editModal.hour_id
+      const updater = h => h.hour_id === editModal.hour_id
         ? { ...h, ...res.data, project_name: res.data.project_name }
-        : h
-      ));
+        : h;
+      setApproved(prev => prev.map(updater));
+      setPending(prev => prev.map(updater));
       closeEdit();
     } catch (e) { alert(e.response?.data?.detail || 'Failed to save.'); }
     finally { setEditSaving(false); }
@@ -192,6 +193,7 @@ export default function AdminHours() {
                           <td>{new Date(h.submitted_on).toLocaleDateString()}</td>
                           <td>
                             <div style={{ display:'flex', gap:'0.5rem' }}>
+                              <button className="btn btn-secondary btn-sm" onClick={() => openEdit(h)}>Edit</button>
                               <button className="btn btn-primary btn-sm" onClick={() => openModal(h, 'approved')}>Approve</button>
                               <button className="btn btn-danger btn-sm" onClick={() => openModal(h, 'rejected')}>Reject</button>
                             </div>
