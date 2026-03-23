@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   getPendingHours, reviewHours, approveAllHours,
-  getHours, updateHours, getProjects,
+  getHours, updateHours, deleteHours, getProjects,
 } from '../api/client';
 
 export default function AdminHours() {
@@ -24,6 +24,9 @@ export default function AdminHours() {
   const [editForm, setEditForm]     = useState({});
   const [editSaving, setEditSaving] = useState(false);
   const [editSource, setEditSource] = useState('approved'); // 'pending' or 'approved'
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteReason, setDeleteReason]   = useState('');
+  const [deleting, setDeleting]           = useState(false);
 
   // ── Loaders ────────────────────────────────────────────────
   const loadPending = async () => {
@@ -86,7 +89,7 @@ export default function AdminHours() {
       notes:        hour.notes || '',
     });
   };
-  const closeEdit = () => { setEditModal(null); setEditForm({}); };
+  const closeEdit = () => { setEditModal(null); setEditForm({}); setDeleteConfirm(false); setDeleteReason(''); };
 
   const handleEditSave = async () => {
     setEditSaving(true);
@@ -119,6 +122,17 @@ export default function AdminHours() {
       closeEdit();
     } catch (e) { alert(e.response?.data?.detail || 'Failed to save.'); }
     finally { setEditSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteHours(editModal.hour_id, deleteReason || null);
+      setApproved(prev => prev.filter(h => h.hour_id !== editModal.hour_id));
+      setPending(prev => prev.filter(h => h.hour_id !== editModal.hour_id));
+      closeEdit();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed to delete.'); }
+    finally { setDeleting(false); }
   };
 
   // ── Filtered approved list ─────────────────────────────────
@@ -400,12 +414,40 @@ export default function AdminHours() {
               />
             </div>
 
-            <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={closeEdit}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleEditSave} disabled={editSaving}>
-                {editSaving ? 'Saving…' : editSource === 'pending' ? 'Save & Approve' : 'Save Changes'}
-              </button>
-            </div>
+            {!deleteConfirm ? (
+              <div className="modal-footer" style={{ justifyContent:'space-between' }}>
+                <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(true)}>
+                  Delete
+                </button>
+                <div style={{ display:'flex', gap:'0.5rem' }}>
+                  <button className="btn btn-ghost" onClick={closeEdit}>Cancel</button>
+                  <button className="btn btn-primary" onClick={handleEditSave} disabled={editSaving}>
+                    {editSaving ? 'Saving…' : editSource === 'pending' ? 'Save & Approve' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ borderTop:'1px solid var(--border)', paddingTop:'1rem', marginTop:'1rem' }}>
+                <p style={{ color:'var(--color-danger)', fontWeight:600, marginBottom:'0.75rem' }}>
+                  Are you sure you want to delete this hour entry? The member will be notified.
+                </p>
+                <div className="form-group">
+                  <label>Reason for removal <span style={{fontWeight:400,textTransform:'none',color:'var(--text-muted)'}}>(included in notification email)</span></label>
+                  <textarea
+                    value={deleteReason}
+                    onChange={e => setDeleteReason(e.target.value)}
+                    placeholder="e.g. Duplicate entry, work leader dispute…"
+                    rows={2}
+                  />
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-ghost" onClick={() => setDeleteConfirm(false)}>Go Back</button>
+                  <button className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+                    {deleting ? 'Deleting…' : 'Confirm Delete'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

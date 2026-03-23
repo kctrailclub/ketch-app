@@ -78,8 +78,8 @@ export const reviewHours = (id, status, status_note) =>
 export const updateHours = (id, data) =>
   api.patch(`/hours/${id}`, data);
 
-export const deleteHours = (id) =>
-  api.delete(`/hours/${id}`);
+export const deleteHours = (id, reason) =>
+  api.delete(`/hours/${id}`, { data: reason ? { reason } : undefined });
 
 export const approveAllHours = () =>
   api.post('/hours/approve-all');
