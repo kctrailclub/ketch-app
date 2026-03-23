@@ -17,10 +17,8 @@ export default function BulkHours() {
   const [success,  setSuccess]  = useState(null);
 
   useEffect(() => {
-    Promise.all([getProjects(true), getUsers()]).then(([pRes, uRes]) => {
-      setProjects(pRes.data);
-      setUsers(uRes.data.filter(u => u.is_active && !u.email.includes('placeholder.invalid')));
-    }).catch(console.error);
+    getProjects(true).then(r => setProjects(r.data)).catch(console.error);
+    getUsers().then(r => setUsers(r.data.filter(u => u.is_active && !u.email.includes('placeholder.invalid')))).catch(console.error);
   }, []);
 
   const setRow = (id, key, value) => {
