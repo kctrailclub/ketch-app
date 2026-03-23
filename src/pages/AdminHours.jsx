@@ -23,6 +23,7 @@ export default function AdminHours() {
   const [editModal, setEditModal]   = useState(null); // hour object
   const [editForm, setEditForm]     = useState({});
   const [editSaving, setEditSaving] = useState(false);
+  const [editSource, setEditSource] = useState('approved'); // 'pending' or 'approved'
 
   // ── Loaders ────────────────────────────────────────────────
   const loadPending = async () => {
@@ -74,8 +75,9 @@ export default function AdminHours() {
   };
 
   // ── Edit approved hours ────────────────────────────────────
-  const openEdit = (hour) => {
+  const openEdit = (hour, source = 'approved') => {
     setEditModal(hour);
+    setEditSource(source);
     setEditForm({
       project_id:   hour.project_id,
       service_date: hour.service_date?.slice?.(0, 10) || hour.service_date,
@@ -98,14 +100,22 @@ export default function AdminHours() {
       if (Number(editForm.hours) !== editModal.hours)           data.hours        = Number(editForm.hours);
       if (editForm.notes !== (editModal.notes || ''))           data.notes        = editForm.notes;
 
-      if (Object.keys(data).length === 0) { closeEdit(); return; }
+      // Save edits if any
+      if (Object.keys(data).length > 0) {
+        const res = await updateHours(editModal.hour_id, data);
+        const updater = h => h.hour_id === editModal.hour_id
+          ? { ...h, ...res.data, project_name: res.data.project_name }
+          : h;
+        setApproved(prev => prev.map(updater));
+        setPending(prev => prev.map(updater));
+      }
 
-      const res = await updateHours(editModal.hour_id, data);
-      const updater = h => h.hour_id === editModal.hour_id
-        ? { ...h, ...res.data, project_name: res.data.project_name }
-        : h;
-      setApproved(prev => prev.map(updater));
-      setPending(prev => prev.map(updater));
+      // Auto-approve when editing from Pending tab
+      if (editSource === 'pending') {
+        await reviewHours(editModal.hour_id, 'approved', null);
+        setPending(prev => prev.filter(h => h.hour_id !== editModal.hour_id));
+      }
+
       closeEdit();
     } catch (e) { alert(e.response?.data?.detail || 'Failed to save.'); }
     finally { setEditSaving(false); }
@@ -196,7 +206,7 @@ export default function AdminHours() {
                           <td>{new Date(h.submitted_on).toLocaleDateString()}</td>
                           <td>
                             <div style={{ display:'flex', gap:'0.5rem' }}>
-                              <button className="btn btn-secondary btn-sm" onClick={() => openEdit(h)}>Edit</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => openEdit(h, 'pending')}>Edit</button>
                               <button className="btn btn-primary btn-sm" onClick={() => openModal(h, 'approved')}>Approve</button>
                               <button className="btn btn-danger btn-sm" onClick={() => openModal(h, 'rejected')}>Reject</button>
                             </div>
@@ -326,7 +336,7 @@ export default function AdminHours() {
         <div className="modal-overlay" onClick={closeEdit}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Edit Hours</h3>
+              <h3>{editSource === 'pending' ? 'Edit & Approve Hours' : 'Edit Hours'}</h3>
               <button className="btn btn-ghost btn-sm" onClick={closeEdit}>✕</button>
             </div>
 
@@ -393,7 +403,7 @@ export default function AdminHours() {
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={closeEdit}>Cancel</button>
               <button className="btn btn-primary" onClick={handleEditSave} disabled={editSaving}>
-                {editSaving ? 'Saving…' : 'Save Changes'}
+                {editSaving ? 'Saving…' : editSource === 'pending' ? 'Save & Approve' : 'Save Changes'}
               </button>
             </div>
           </div>
