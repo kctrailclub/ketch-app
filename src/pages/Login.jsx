@@ -28,7 +28,7 @@ export default function Login() {
       if (status === 401) {
         setError('Incorrect email or password. Please try again.');
       } else if (status === 403) {
-        setError('Your account is inactive. Please contact an administrator.');
+        setError('Your account is inactive. Please contact membership@kctrailclub.org for help.');
       } else {
         setError('Unable to sign in. Please check your connection and try again.');
       }
