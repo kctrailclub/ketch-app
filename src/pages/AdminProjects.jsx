@@ -125,7 +125,10 @@ export default function AdminProjects() {
               </div>
               <div className="form-group">
                 <label>Type</label>
-                <select value={form.project_type} onChange={e => set('project_type', e.target.value)}>
+                <select value={form.project_type} onChange={e => {
+                  const val = e.target.value;
+                  setForm(f => ({ ...f, project_type: val, ...(val === 'ongoing' ? { end_date: '' } : {}) }));
+                }}>
                   <option value="ongoing">Ongoing</option>
                   <option value="one_time">One-time</option>
                 </select>
