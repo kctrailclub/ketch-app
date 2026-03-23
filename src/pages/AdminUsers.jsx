@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getUsers, createUser, updateUser, resendInvite, getHouseholds, getRegistrations, approveRegistration, rejectRegistration, getHours } from '../api/client';
+import { getUsers, createUser, updateUser, resendInvite, getHouseholds, getRegistrations, approveRegistration, rejectRegistration, getHours, bulkCreateHouseholds } from '../api/client';
 
 export default function AdminUsers() {
   const [users,         setUsers]         = useState([]);
@@ -11,6 +11,8 @@ export default function AdminUsers() {
   const [error,   setError]   = useState('');
   const [saving,  setSaving]  = useState(false);
   const [search,  setSearch]  = useState('');
+  const [bulkHHLoading, setBulkHHLoading] = useState(false);
+  const [bulkHHResult, setBulkHHResult] = useState(null);
   const [hoursModal, setHoursModal] = useState(null); // user object
   const [hoursData, setHoursData]   = useState([]);
   const [hoursYear, setHoursYear]   = useState(new Date().getFullYear());
@@ -122,6 +124,21 @@ export default function AdminUsers() {
     finally { setHoursLoading(false); }
   };
 
+  const orphanCount = users.filter(u => !u.household_id).length;
+
+  const handleBulkHouseholds = async () => {
+    if (!window.confirm(`Create households for ${orphanCount} member(s) without one? Members with the same last name will be grouped together.`)) return;
+    setBulkHHLoading(true);
+    setBulkHHResult(null);
+    try {
+      const res = await bulkCreateHouseholds();
+      setBulkHHResult(res.data.detail);
+      await load();
+    } catch (err) {
+      setBulkHHResult(err.response?.data?.detail || 'Failed to create households.');
+    } finally { setBulkHHLoading(false); }
+  };
+
   const filtered = users.filter(u =>
     `${u.firstname} ${u.lastname} ${u.email}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -184,6 +201,24 @@ export default function AdminUsers() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {orphanCount > 0 && (
+          <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'1rem' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={handleBulkHouseholds}
+              disabled={bulkHHLoading}
+            >
+              {bulkHHLoading ? 'Creating…' : `Assign Households (${orphanCount} members)`}
+            </button>
+            {bulkHHResult && (
+              <span style={{ fontSize:'0.85rem' }}>
+                {bulkHHResult}
+                <button className="btn btn-ghost btn-sm" style={{ marginLeft:'0.5rem' }} onClick={() => setBulkHHResult(null)}>✕</button>
+              </span>
+            )}
           </div>
         )}
 

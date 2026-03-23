@@ -202,3 +202,5 @@ export const updateResourceDocument = (id, data) =>
 
 export const deleteResourceDocument = (id) =>
   api.delete(`/resources/documents/${id}`);
+
+export const bulkCreateHouseholds = () => api.post('/users/bulk-households');
