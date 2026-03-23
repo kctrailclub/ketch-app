@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getUsers, createUser, updateUser, resendInvite, getHouseholds, getRegistrations, approveRegistration, rejectRegistration } from '../api/client';
+import { getUsers, createUser, updateUser, resendInvite, getHouseholds, getRegistrations, approveRegistration, rejectRegistration, getHours } from '../api/client';
 
 export default function AdminUsers() {
   const [users,         setUsers]         = useState([]);
@@ -11,6 +11,10 @@ export default function AdminUsers() {
   const [error,   setError]   = useState('');
   const [saving,  setSaving]  = useState(false);
   const [search,  setSearch]  = useState('');
+  const [hoursModal, setHoursModal] = useState(null); // user object
+  const [hoursData, setHoursData]   = useState([]);
+  const [hoursYear, setHoursYear]   = useState(new Date().getFullYear());
+  const [hoursLoading, setHoursLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -92,6 +96,29 @@ export default function AdminUsers() {
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to reject registration.');
     }
+  };
+
+  const openHours = async (u) => {
+    setHoursModal(u);
+    setHoursYear(new Date().getFullYear());
+    setHoursLoading(true);
+    try {
+      const res = await getHours({ member_id: u.user_id });
+      setHoursData(res.data);
+    } catch (err) { console.error(err); setHoursData([]); }
+    finally { setHoursLoading(false); }
+  };
+
+  const loadHoursForYear = async (userId, year) => {
+    setHoursYear(year);
+    setHoursLoading(true);
+    try {
+      const params = { member_id: userId };
+      if (year !== 'all') params.year = year;
+      const res = await getHours(params);
+      setHoursData(res.data);
+    } catch (err) { console.error(err); setHoursData([]); }
+    finally { setHoursLoading(false); }
   };
 
   const filtered = users.filter(u =>
@@ -187,6 +214,7 @@ export default function AdminUsers() {
                       <td>
                         <div style={{ display:'flex', gap:'0.4rem' }}>
                           <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => openHours(u)}>Hours</button>
                           {u.invite_pending && (
                             <button className="btn btn-ghost btn-sm" onClick={() => handleResend(u)}>Resend</button>
                           )}
@@ -200,6 +228,77 @@ export default function AdminUsers() {
           )}
         </div>
       </div>
+
+      {/* View Hours Modal */}
+      {hoursModal && (
+        <div className="modal-overlay" onClick={() => setHoursModal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth:700 }}>
+            <div className="modal-header">
+              <h3>{hoursModal.firstname} {hoursModal.lastname} — Hours</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setHoursModal(null)}>✕</button>
+            </div>
+
+            <div style={{ display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1rem' }}>
+              <select
+                value={hoursYear}
+                onChange={e => loadHoursForYear(hoursModal.user_id, e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                style={{ width:'auto' }}
+              >
+                <option value="all">All Years</option>
+                {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              {!hoursLoading && (
+                <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
+                  {hoursData.length} entr{hoursData.length === 1 ? 'y' : 'ies'}
+                  {' · '}
+                  <strong>
+                    {hoursData.filter(h => h.status === 'approved').reduce((sum, h) => sum + h.hours, 0).toFixed(1)}h
+                  </strong> approved
+                </span>
+              )}
+            </div>
+
+            {hoursLoading ? <span className="spinner" /> : hoursData.length === 0 ? (
+              <p style={{ color:'var(--text-muted)', textAlign:'center', padding:'2rem 0' }}>No hours found.</p>
+            ) : (
+              <div className="table-wrapper" style={{ maxHeight:400, overflowY:'auto' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Project</th>
+                      <th>Hours</th>
+                      <th>Status</th>
+                      <th>Credit Year</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hoursData.map(h => (
+                      <tr key={h.hour_id}>
+                        <td>{new Date(h.service_date).toLocaleDateString()}</td>
+                        <td>{h.project_name}</td>
+                        <td>{h.hours}</td>
+                        <td>
+                          <span className={`badge badge-${h.status === 'approved' ? 'approved' : h.status === 'rejected' ? 'rejected' : 'pending'}`}>
+                            {h.status.charAt(0).toUpperCase() + h.status.slice(1)}
+                          </span>
+                        </td>
+                        <td>{h.credit_year}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="modal-footer" style={{ marginTop:'1rem' }}>
+              <button className="btn btn-ghost" onClick={() => setHoursModal(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create / Edit Modal */}
       {modal && (
