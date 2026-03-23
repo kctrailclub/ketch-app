@@ -99,11 +99,12 @@ export default function AdminUsers() {
   };
 
   const openHours = async (u) => {
+    const yr = new Date().getFullYear();
     setHoursModal(u);
-    setHoursYear(new Date().getFullYear());
+    setHoursYear(yr);
     setHoursLoading(true);
     try {
-      const res = await getHours({ member_id: u.user_id });
+      const res = await getHours({ member_id: u.user_id, year: yr });
       setHoursData(res.data);
     } catch (err) { console.error(err); setHoursData([]); }
     finally { setHoursLoading(false); }
