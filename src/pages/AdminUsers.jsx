@@ -17,6 +17,8 @@ export default function AdminUsers() {
   const [hoursData, setHoursData]   = useState([]);
   const [hoursYear, setHoursYear]   = useState(new Date().getFullYear());
   const [hoursLoading, setHoursLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
 
   const load = async () => {
     setLoading(true);
@@ -142,6 +144,8 @@ export default function AdminUsers() {
   const filtered = users.filter(u =>
     `${u.firstname} ${u.lastname} ${u.email}`.toLowerCase().includes(search.toLowerCase())
   );
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="page">
@@ -149,14 +153,14 @@ export default function AdminUsers() {
         <div className="page-header">
           <div className="page-header-text">
             <h1>Members</h1>
-            <p>{users.length} total members</p>
+            <p>{search ? `${filtered.length} of ${users.length}` : users.length} total members</p>
           </div>
           <div style={{ display:'flex', gap:'0.75rem', alignItems:'center' }}>
             <input
               type="search"
               placeholder="Search by name or email…"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
               style={{ width:220 }}
             />
             <button className="btn btn-primary" onClick={openCreate}>+ Add Member</button>
@@ -238,7 +242,7 @@ export default function AdminUsers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(u => (
+                  {paged.map(u => (
                     <tr key={u.user_id}>
                       <td><strong>{u.firstname} {u.lastname}</strong></td>
                       <td>{u.email.includes('placeholder.invalid') ? <em style={{color:'var(--text-muted)'}}>no email</em> : u.email}</td>
@@ -263,6 +267,21 @@ export default function AdminUsers() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.75rem 1.25rem', borderTop:'1px solid var(--border)' }}>
+              <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
+                Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+              </span>
+              <div style={{ display:'flex', gap:'0.4rem' }}>
+                <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(1)}>First</button>
+                <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</button>
+                <span style={{ fontSize:'0.85rem', padding:'0.25rem 0.5rem' }}>Page {page} of {totalPages}</span>
+                <button className="btn btn-ghost btn-sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+                <button className="btn btn-ghost btn-sm" disabled={page === totalPages} onClick={() => setPage(totalPages)}>Last</button>
+              </div>
             </div>
           )}
         </div>
