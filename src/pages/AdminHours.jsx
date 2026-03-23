@@ -45,7 +45,10 @@ export default function AdminHours() {
     finally { setLoadingA(false); }
   };
 
-  useEffect(() => { loadPending(); }, []);
+  useEffect(() => {
+    loadPending();
+    getProjects().then(r => setProjects(r.data)).catch(console.error);
+  }, []);
   useEffect(() => { if (tab === 'approved') loadApproved(); }, [tab]);
 
   // ── Pending actions ────────────────────────────────────────
