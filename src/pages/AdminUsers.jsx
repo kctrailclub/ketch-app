@@ -215,7 +215,7 @@ export default function AdminUsers() {
                       <td>
                         <div style={{ display:'flex', gap:'0.4rem' }}>
                           <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => openHours(u)}>Hours</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => openHours(u)}>Hours</button>
                           {u.invite_pending && (
                             <button className="btn btn-ghost btn-sm" onClick={() => handleResend(u)}>Resend</button>
                           )}
