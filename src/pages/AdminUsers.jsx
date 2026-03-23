@@ -152,6 +152,9 @@ export default function AdminUsers() {
             <div className="card-header">
               <h3>Pending Registration Requests ({registrations.length})</h3>
             </div>
+            <div style={{ padding:'0.75rem 1.25rem', background:'var(--bg-muted)', borderBottom:'1px solid var(--border)', fontSize:'0.85rem', color:'var(--text-secondary)' }}>
+              <strong>Reminder:</strong> Please verify the applicant has completed the KCTC Volunteer Waiver on the Ken-Caryl Ranch website before approving.
+            </div>
             <div className="table-wrapper">
               <table>
                 <thead>
