@@ -312,7 +312,7 @@ export default function AdminUsers() {
                   {hoursData.length} entr{hoursData.length === 1 ? 'y' : 'ies'}
                   {' · '}
                   <strong>
-                    {hoursData.filter(h => h.status === 'approved').reduce((sum, h) => sum + h.hours, 0).toFixed(1)}h
+                    {hoursData.filter(h => h.status === 'approved').reduce((sum, h) => sum + h.hours * ((h.member_credit_pct ?? 100) / 100), 0).toFixed(1)}h
                   </strong> approved
                 </span>
               )}

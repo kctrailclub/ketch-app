@@ -31,7 +31,7 @@ export default function Dashboard() {
   }, [user]);
 
   const approvedHours = myHours.filter(h => h.status === 'approved');
-  const totalHours = approvedHours.reduce((sum, h) => sum + h.hours, 0);
+  const totalHours = approvedHours.reduce((sum, h) => sum + h.hours * ((h.member_credit_pct ?? 100) / 100), 0);
 
   if (loading) return <div className="loading-page"><span className="spinner" /></div>;
 

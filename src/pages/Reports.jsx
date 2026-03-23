@@ -145,15 +145,19 @@ export default function Reports() {
     }).catch(() => {});
   }, [memberYear]);
 
+  // ── Helper: apply member credit % ───────────────────────────
+  const credited = (h) => h.hours * ((h.member_credit_pct ?? 100) / 100);
+
   // ── Projects YTD (always current year) ───────────────────────
   const projectData = useMemo(() => {
     const hours = hoursCache[currentYear] || [];
     const map = {};
     hours.forEach(h => {
+        const ch = credited(h);
         if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
-        map[h.project_name].hours += h.hours;
+        map[h.project_name].hours += ch;
         const mName = h.member_name || `Member #${h.member_id}`;
-        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
+        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + ch;
       });
     return Object.entries(map)
       .map(([name, d]) => ({
@@ -173,10 +177,11 @@ export default function Reports() {
     const hours = hoursCache[trendYear] || [];
     const map = {};
     hours.forEach(h => {
+        const ch = credited(h);
         if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
-        map[h.project_name].hours += h.hours;
+        map[h.project_name].hours += ch;
         const mName = h.member_name || `Member #${h.member_id}`;
-        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
+        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + ch;
       });
     return Object.entries(map)
       .map(([name, d]) => ({
@@ -200,10 +205,11 @@ export default function Reports() {
     const hours = (hoursCache[youthYear] || []).filter(h => youthUserIds.has(h.member_id));
     const map = {};
     hours.forEach(h => {
+      const ch = credited(h);
       if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
-      map[h.project_name].hours += h.hours;
+      map[h.project_name].hours += ch;
       const mName = h.member_name || `Member #${h.member_id}`;
-      map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
+      map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + ch;
     });
     return Object.entries(map)
       .map(([name, d]) => ({
@@ -220,7 +226,7 @@ export default function Reports() {
   const memberData = useMemo(() => {
     const filtered = hoursCache[memberYear] || [];
     const memberMap = {};
-    filtered.forEach(h => { memberMap[h.member_id] = (memberMap[h.member_id] || 0) + h.hours; });
+    filtered.forEach(h => { memberMap[h.member_id] = (memberMap[h.member_id] || 0) + credited(h); });
 
     const individuals = Object.entries(memberMap).map(([id, hours]) => {
       const u  = users.find(u => u.user_id === parseInt(id));
