@@ -199,11 +199,9 @@ export function MyHours() {
   };
 
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
+  const credited = (h) => h.hours * ((h.member_credit_pct ?? 100) / 100);
   const approvedHours = hours.filter(h => h.status === 'approved');
-  const total = approvedHours.reduce((s, h) => s + h.hours, 0);
-  const creditedTotal = approvedHours.reduce((s, h) => {
-    return s + (h.hours * ((h.member_credit_pct ?? 100) / 100));
-  }, 0);
+  const creditedTotal = approvedHours.reduce((s, h) => s + credited(h), 0);
   const hasDiscountedHours = approvedHours.some(h => (h.member_credit_pct ?? 100) < 100);
   const isFamily = hours.some(h => h.member_id !== user?.user_id);
 
@@ -213,7 +211,7 @@ export function MyHours() {
         <div className="page-header">
           <div className="page-header-text">
             <h1>{isFamily ? 'My Family Hours' : 'My Hours'}</h1>
-            <p>{total.toFixed(1)} approved hours in {year}</p>
+            <p>{creditedTotal.toFixed(1)} approved credited hours in {year}</p>
           </div>
           <div style={{ display:'flex', gap:'0.75rem', alignItems:'center' }}>
             <select value={year} onChange={e => setYear(Number(e.target.value))} style={{ width:'auto' }}>
@@ -297,7 +295,16 @@ export function MyHours() {
                         )}
                       </td>
                       <td><strong>{h.project_name}</strong></td>
-                      <td>{h.hours}</td>
+                      <td>
+                        {credited(h) !== h.hours ? (
+                          <>
+                            {credited(h).toFixed(1)}
+                            <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>
+                              {h.hours} × {h.member_credit_pct}%
+                            </div>
+                          </>
+                        ) : h.hours}
+                      </td>
                       <td style={{maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                         {h.notes || '—'}
                       </td>

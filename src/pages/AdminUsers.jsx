@@ -337,7 +337,16 @@ export default function AdminUsers() {
                       <tr key={h.hour_id}>
                         <td>{new Date(h.service_date).toLocaleDateString()}</td>
                         <td>{h.project_name}</td>
-                        <td>{h.hours}</td>
+                        <td>
+                          {(h.member_credit_pct ?? 100) < 100 ? (
+                            <>
+                              {(h.hours * (h.member_credit_pct / 100)).toFixed(1)}
+                              <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>
+                                {h.hours} × {h.member_credit_pct}%
+                              </div>
+                            </>
+                          ) : h.hours}
+                        </td>
                         <td>
                           <span className={`badge badge-${h.status === 'approved' ? 'approved' : h.status === 'rejected' ? 'rejected' : 'pending'}`}>
                             {h.status.charAt(0).toUpperCase() + h.status.slice(1)}
