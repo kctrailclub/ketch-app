@@ -262,7 +262,7 @@ export default function AdminUsers() {
                   <select value={approveHH.household_id || ''} onChange={e => setApproveHH(prev => ({ ...prev, household_id: e.target.value }))} required>
                     <option value="">Select a household…</option>
                     {households.map(h => (
-                      <option key={h.household_id} value={h.household_id}>{h.name} ({h.household_code})</option>
+                      <option key={h.household_id} value={h.household_id}>{h.name}{h.address ? ` — ${h.address}` : ''} ({h.household_code})</option>
                     ))}
                   </select>
                 )}
@@ -487,7 +487,7 @@ export default function AdminUsers() {
                       <select value={form.household_id || ''} onChange={e => set('household_id', e.target.value)} required>
                         <option value="">Select a household…</option>
                         {households.map(h => (
-                          <option key={h.household_id} value={h.household_id}>{h.name} ({h.household_code})</option>
+                          <option key={h.household_id} value={h.household_id}>{h.name}{h.address ? ` — ${h.address}` : ''} ({h.household_code})</option>
                         ))}
                       </select>
                     )}
@@ -534,7 +534,7 @@ export default function AdminUsers() {
                     <option value="">— No household —</option>
                     {households.map(h => (
                       <option key={h.household_id} value={h.household_id}>
-                        {h.name} ({h.household_code})
+                        {h.name}{h.address ? ` — ${h.address}` : ''} ({h.household_code})
                       </option>
                     ))}
                   </select>
