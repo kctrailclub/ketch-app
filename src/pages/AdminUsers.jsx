@@ -13,6 +13,8 @@ export default function AdminUsers() {
   const [search,  setSearch]  = useState('');
   const [bulkHHLoading, setBulkHHLoading] = useState(false);
   const [bulkHHResult, setBulkHHResult] = useState(null);
+  const [approveModal, setApproveModal] = useState(null); // registration object
+  const [approveHH, setApproveHH] = useState({ option:'new', household_id:'' });
   const [hoursModal, setHoursModal] = useState(null); // user object
   const [hoursData, setHoursData]   = useState([]);
   const [hoursYear, setHoursYear]   = useState(new Date().getFullYear());
@@ -34,7 +36,7 @@ export default function AdminUsers() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
-    setForm({ firstname:'', lastname:'', email:'', phone:'', is_admin:false, youth:false });
+    setForm({ firstname:'', lastname:'', email:'', phone:'', is_admin:false, youth:false, household_option:'new', household_id:'' });
     setModal('create');
     setError('');
   };
@@ -51,7 +53,21 @@ export default function AdminUsers() {
     e.preventDefault();
     setSaving(true); setError('');
     try {
-      await createUser(form);
+      const payload = {
+        firstname: form.firstname,
+        lastname: form.lastname,
+        email: form.email,
+        phone: form.phone,
+        is_admin: form.is_admin,
+        youth: form.youth,
+      };
+      if (form.household_option === 'existing' && form.household_id) {
+        payload.household_id = parseInt(form.household_id);
+      } else if (form.household_option === 'new') {
+        payload.create_household = true;
+      }
+      // 'none' → no household_id, no create_household
+      await createUser(payload);
       await load();
       setModal(null);
     } catch (err) {
@@ -83,9 +99,22 @@ export default function AdminUsers() {
     }
   };
 
-  const handleApproveReg = async (id) => {
+  const openApproveModal = (reg) => {
+    setApproveModal(reg);
+    setApproveHH({ option:'new', household_id:'' });
+  };
+
+  const handleApproveReg = async () => {
+    const reg = approveModal;
+    const body = {};
+    if (approveHH.option === 'existing' && approveHH.household_id) {
+      body.household_id = parseInt(approveHH.household_id);
+    } else if (approveHH.option === 'new') {
+      body.create_household = true;
+    }
     try {
-      await approveRegistration(id);
+      await approveRegistration(reg.request_id, body);
+      setApproveModal(null);
       await load();
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to approve registration.');
@@ -196,7 +225,7 @@ export default function AdminUsers() {
                       <td>{new Date(r.created).toLocaleDateString()}</td>
                       <td>
                         <div style={{ display:'flex', gap:'0.4rem' }}>
-                          <button className="btn btn-primary btn-sm" onClick={() => handleApproveReg(r.request_id)}>Approve</button>
+                          <button className="btn btn-primary btn-sm" onClick={() => openApproveModal(r)}>Approve</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => handleRejectReg(r.request_id)}>Reject</button>
                         </div>
                       </td>
@@ -204,6 +233,55 @@ export default function AdminUsers() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Approve Registration Modal */}
+        {approveModal && (
+          <div className="modal-overlay" onClick={() => setApproveModal(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth:500 }}>
+              <div className="modal-header">
+                <h3>Approve {approveModal.firstname} {approveModal.lastname}</h3>
+                <button className="btn btn-ghost btn-sm" onClick={() => setApproveModal(null)}>✕</button>
+              </div>
+              <p style={{ fontSize:'0.9rem', color:'var(--text-secondary)', marginBottom:'1rem' }}>
+                Assign this member to a household before approving.
+              </p>
+              <div className="form-group">
+                <label>Household</label>
+                <div style={{ display:'flex', gap:'0.75rem', marginBottom:'0.5rem' }}>
+                  {[['new','Create new'],['existing','Existing'],['none','Assign later']].map(([val, label]) => (
+                    <label key={val} style={{ display:'flex', alignItems:'center', gap:'0.3rem', cursor:'pointer', fontSize:'0.9rem', fontWeight:400, textTransform:'none' }}>
+                      <input type="radio" name="approve_hh" checked={approveHH.option === val} onChange={() => setApproveHH(prev => ({ ...prev, option: val }))} style={{ width:'auto' }} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                {approveHH.option === 'existing' && (
+                  <select value={approveHH.household_id || ''} onChange={e => setApproveHH(prev => ({ ...prev, household_id: e.target.value }))} required>
+                    <option value="">Select a household…</option>
+                    {households.map(h => (
+                      <option key={h.household_id} value={h.household_id}>{h.name} ({h.household_code})</option>
+                    ))}
+                  </select>
+                )}
+                {approveHH.option === 'new' && (
+                  <span style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
+                    A new household "{approveModal.lastname}" will be created.
+                  </span>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-ghost" onClick={() => setApproveModal(null)}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  disabled={approveHH.option === 'existing' && !approveHH.household_id}
+                  onClick={handleApproveReg}
+                >
+                  Approve & Create Account
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -394,6 +472,30 @@ export default function AdminUsers() {
                   <div className="form-group">
                     <label>Email</label>
                     <input type="email" value={form.email} onChange={e => set('email', e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Household</label>
+                    <div style={{ display:'flex', gap:'0.75rem', marginBottom:'0.5rem' }}>
+                      {[['new','Create new'],['existing','Existing'],['none','Assign later']].map(([val, label]) => (
+                        <label key={val} style={{ display:'flex', alignItems:'center', gap:'0.3rem', cursor:'pointer', fontSize:'0.9rem', fontWeight:400, textTransform:'none' }}>
+                          <input type="radio" name="hh_option" checked={form.household_option === val} onChange={() => set('household_option', val)} style={{ width:'auto' }} />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    {form.household_option === 'existing' && (
+                      <select value={form.household_id || ''} onChange={e => set('household_id', e.target.value)} required>
+                        <option value="">Select a household…</option>
+                        {households.map(h => (
+                          <option key={h.household_id} value={h.household_id}>{h.name} ({h.household_code})</option>
+                        ))}
+                      </select>
+                    )}
+                    {form.household_option === 'new' && (
+                      <span style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
+                        A new household will be created using the member's last name.
+                      </span>
+                    )}
                   </div>
                 </>
               )}

@@ -152,8 +152,8 @@ export const submitRegistration = (data) =>
 export const getRegistrations = () =>
   api.get('/registrations/');
 
-export const approveRegistration = (id) =>
-  api.post(`/registrations/${id}/approve`);
+export const approveRegistration = (id, body = {}) =>
+  api.post(`/registrations/${id}/approve`, body);
 
 export const rejectRegistration = (id) =>
   api.post(`/registrations/${id}/reject`);
