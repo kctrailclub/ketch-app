@@ -153,11 +153,10 @@ export default function Reports() {
     const hours = hoursCache[currentYear] || [];
     const map = {};
     hours.forEach(h => {
-        const ch = credited(h);
         if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
-        map[h.project_name].hours += ch;
+        map[h.project_name].hours += h.hours;
         const mName = h.member_name || `Member #${h.member_id}`;
-        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + ch;
+        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
       });
     return Object.entries(map)
       .map(([name, d]) => ({
@@ -177,11 +176,10 @@ export default function Reports() {
     const hours = hoursCache[trendYear] || [];
     const map = {};
     hours.forEach(h => {
-        const ch = credited(h);
         if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
-        map[h.project_name].hours += ch;
+        map[h.project_name].hours += h.hours;
         const mName = h.member_name || `Member #${h.member_id}`;
-        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + ch;
+        map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
       });
     return Object.entries(map)
       .map(([name, d]) => ({
@@ -205,11 +203,10 @@ export default function Reports() {
     const hours = (hoursCache[youthYear] || []).filter(h => youthUserIds.has(h.member_id));
     const map = {};
     hours.forEach(h => {
-      const ch = credited(h);
       if (!map[h.project_name]) map[h.project_name] = { hours: 0, members: {} };
-      map[h.project_name].hours += ch;
+      map[h.project_name].hours += h.hours;
       const mName = h.member_name || `Member #${h.member_id}`;
-      map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + ch;
+      map[h.project_name].members[mName] = (map[h.project_name].members[mName] || 0) + h.hours;
     });
     return Object.entries(map)
       .map(([name, d]) => ({
