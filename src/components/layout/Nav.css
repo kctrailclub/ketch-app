@@ -160,6 +160,8 @@
   background: var(--forest);
   border-top: 1px solid rgba(255,255,255,0.1);
   padding: 0.5rem 0;
+  max-height: calc(100vh - var(--nav-height));
+  overflow-y: auto;
 }
 
 .nav-mobile-link {

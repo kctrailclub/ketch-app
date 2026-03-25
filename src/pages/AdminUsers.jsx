@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getUsers, createUser, updateUser, resendInvite, getHouseholds, getRegistrations, approveRegistration, rejectRegistration, getHours, bulkCreateHouseholds } from '../api/client';
+import { getUsers, createUser, updateUser, resendInvite, getHouseholds, getRegistrations, approveRegistration, rejectRegistration, getHours, updateHours, deleteHours, getProjects, bulkCreateHouseholds } from '../api/client';
 
 export default function AdminUsers() {
   const [users,         setUsers]         = useState([]);
@@ -19,6 +19,14 @@ export default function AdminUsers() {
   const [hoursData, setHoursData]   = useState([]);
   const [hoursYear, setHoursYear]   = useState(new Date().getFullYear());
   const [hoursLoading, setHoursLoading] = useState(false);
+  const [editHour, setEditHour]     = useState(null); // hour object being edited
+  const [editHourForm, setEditHourForm] = useState({});
+  const [editHourSaving, setEditHourSaving] = useState(false);
+  const [editHourError, setEditHourError] = useState('');
+  const [hourProjects, setHourProjects] = useState([]);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 50;
 
@@ -153,6 +161,55 @@ export default function AdminUsers() {
       setHoursData(res.data);
     } catch (err) { console.error(err); setHoursData([]); }
     finally { setHoursLoading(false); }
+  };
+
+  const openEditHour = async (h) => {
+    if (!hourProjects.length) {
+      try { const res = await getProjects(); setHourProjects(res.data); } catch (e) { console.error(e); }
+    }
+    setEditHour(h);
+    setEditHourForm({
+      project_id: h.project_id,
+      service_date: h.service_date?.slice(0, 10) || '',
+      credit_year: h.credit_year || new Date().getFullYear(),
+      hours: h.hours,
+      notes: h.notes || '',
+    });
+    setEditHourError('');
+    setDeleteConfirm(false);
+    setDeleteReason('');
+  };
+
+  const closeEditHour = () => { setEditHour(null); setDeleteConfirm(false); };
+
+  const handleEditHourSave = async () => {
+    setEditHourSaving(true); setEditHourError('');
+    try {
+      await updateHours(editHour.hour_id, {
+        project_id: editHourForm.project_id,
+        service_date: editHourForm.service_date,
+        credit_year: editHourForm.credit_year,
+        hours: parseFloat(editHourForm.hours),
+        notes: editHourForm.notes,
+      });
+      setEditHour(null);
+      // reload hours list
+      await loadHoursForYear(hoursModal.user_id, hoursYear);
+    } catch (err) {
+      setEditHourError(err.response?.data?.detail || 'Failed to save changes.');
+    } finally { setEditHourSaving(false); }
+  };
+
+  const handleDeleteHour = async () => {
+    setDeleting(true);
+    try {
+      await deleteHours(editHour.hour_id, deleteReason);
+      setEditHour(null);
+      setDeleteConfirm(false);
+      await loadHoursForYear(hoursModal.user_id, hoursYear);
+    } catch (err) {
+      setEditHourError(err.response?.data?.detail || 'Failed to delete.');
+    } finally { setDeleting(false); }
   };
 
   const orphanCount = users.filter(u => !u.household_id).length;
@@ -399,6 +456,7 @@ export default function AdminUsers() {
             {hoursLoading ? <span className="spinner" /> : hoursData.length === 0 ? (
               <p style={{ color:'var(--text-muted)', textAlign:'center', padding:'2rem 0' }}>No hours found.</p>
             ) : (
+              <div>
               <div className="table-wrapper" style={{ maxHeight:400, overflowY:'auto' }}>
                 <table>
                   <thead>
@@ -412,7 +470,7 @@ export default function AdminUsers() {
                   </thead>
                   <tbody>
                     {hoursData.map(h => (
-                      <tr key={h.hour_id}>
+                      <tr key={h.hour_id} onClick={() => openEditHour(h)} style={{ cursor:'pointer' }} title="Click to edit">
                         <td>{new Date(h.service_date).toLocaleDateString()}</td>
                         <td>{h.project_name}</td>
                         <td>
@@ -436,11 +494,122 @@ export default function AdminUsers() {
                   </tbody>
                 </table>
               </div>
+              <p style={{ fontSize:'0.8rem', color:'var(--text-muted)', marginTop:'0.5rem' }}>Click a row to edit</p>
+              </div>
             )}
 
             <div className="modal-footer" style={{ marginTop:'1rem' }}>
               <button className="btn btn-ghost" onClick={() => setHoursModal(null)}>Close</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Hour Modal */}
+      {editHour && (
+        <div className="modal-overlay" onClick={closeEditHour}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Edit Hours</h3>
+              <button className="btn btn-ghost btn-sm" onClick={closeEditHour}>✕</button>
+            </div>
+
+            <p style={{ marginBottom:'1rem', color:'var(--text-secondary)' }}>
+              <strong>{hoursModal?.firstname} {hoursModal?.lastname}</strong>
+            </p>
+
+            {editHourError && <div className="alert alert-error" style={{ marginBottom:'1rem' }}>{editHourError}</div>}
+
+            <div className="form-group">
+              <label>Project</label>
+              <select
+                value={editHourForm.project_id}
+                onChange={e => setEditHourForm(f => ({ ...f, project_id: Number(e.target.value) }))}
+              >
+                {hourProjects.map(p => (
+                  <option key={p.project_id} value={p.project_id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Service Date</label>
+              <input
+                type="date"
+                value={editHourForm.service_date}
+                onChange={e => setEditHourForm(f => ({ ...f, service_date: e.target.value }))}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Credit Year</label>
+              <select
+                value={editHourForm.credit_year}
+                onChange={e => setEditHourForm(f => ({ ...f, credit_year: Number(e.target.value) }))}
+              >
+                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <span style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginTop:'0.25rem', display:'block' }}>
+                Which year these hours count toward in reports and rewards
+              </span>
+            </div>
+
+            <div className="form-group">
+              <label>Hours</label>
+              <input
+                type="number"
+                step="0.5"
+                min="0.5"
+                value={editHourForm.hours}
+                onChange={e => setEditHourForm(f => ({ ...f, hours: e.target.value }))}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Notes</label>
+              <textarea
+                value={editHourForm.notes}
+                onChange={e => setEditHourForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Optional notes…"
+              />
+            </div>
+
+            {!deleteConfirm ? (
+              <div className="modal-footer" style={{ justifyContent:'space-between' }}>
+                <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(true)}>
+                  Delete
+                </button>
+                <div style={{ display:'flex', gap:'0.5rem' }}>
+                  <button className="btn btn-ghost" onClick={closeEditHour}>Cancel</button>
+                  <button className="btn btn-primary" onClick={handleEditHourSave} disabled={editHourSaving}>
+                    {editHourSaving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ borderTop:'1px solid var(--border)', paddingTop:'1rem', marginTop:'1rem' }}>
+                <p style={{ color:'var(--color-danger)', fontWeight:600, marginBottom:'0.75rem' }}>
+                  Are you sure you want to delete this hour entry? The member will be notified.
+                </p>
+                <div className="form-group">
+                  <label>Reason for removal <span style={{fontWeight:400,textTransform:'none',color:'var(--text-muted)'}}>(included in notification email)</span></label>
+                  <textarea
+                    value={deleteReason}
+                    onChange={e => setDeleteReason(e.target.value)}
+                    placeholder="e.g. Duplicate entry, hours reassigned to different year…"
+                    rows={2}
+                  />
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-ghost" onClick={() => setDeleteConfirm(false)}>Go Back</button>
+                  <button className="btn btn-danger" onClick={handleDeleteHour} disabled={deleting}>
+                    {deleting ? 'Deleting…' : 'Confirm Delete'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
