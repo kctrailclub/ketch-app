@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getMe, logout as logoutApi } from '../api/client';
+import { registerPushNotifications } from '../utils/pushNotifications';
 
 const AuthContext = createContext(null);
 
@@ -13,6 +14,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await getMe();
       setUser(res.data);
+      registerPushNotifications();
     } catch {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
@@ -27,6 +29,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('access_token', accessToken);
     localStorage.setItem('refresh_token', refreshToken);
     setUser(userData);
+    registerPushNotifications();
   };
 
   const signOut = () => {

@@ -204,3 +204,8 @@ export const deleteResourceDocument = (id) =>
   api.delete(`/resources/documents/${id}`);
 
 export const bulkCreateHouseholds = () => api.post('/users/bulk-households');
+
+// Push notifications
+export const getVapidPublicKey = () => api.get('/push/vapid-public-key');
+export const subscribePush = (subscription) => api.post('/push/subscribe', subscription);
+export const unsubscribePush = (subscription) => api.post('/push/unsubscribe', subscription);
