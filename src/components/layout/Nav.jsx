@@ -139,7 +139,7 @@ export default function Nav() {
           >
             Change Password
           </Link>
-          <button className="btn btn-ghost btn-sm" onClick={handleSignOut} style={{margin:'0.5rem 1rem'}}>
+          <button className="nav-mobile-link" onClick={() => { setMenuOpen(false); handleSignOut(); }} style={{textAlign:'left',background:'none',border:'none',cursor:'pointer'}}>
             Sign out
           </button>
         </div>
