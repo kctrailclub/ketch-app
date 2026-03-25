@@ -137,6 +137,9 @@ export const saveRewardTag = (household_id, year, tag_number) =>
 
 export const getRewardTags = (year) =>
   api.get('/settings/rewards/tags', { params: { year } });
+
+export const autoAssignTags = (start_tag, end_tag) =>
+  api.post('/settings/rewards/auto-assign-tags', { start_tag, end_tag });
 export const getNotifications = (unreadOnly = false) =>
   api.get('/notifications/', { params: { unread_only: unreadOnly } });
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getRewardSettings, updateRewardSettings, sendRewardEmails, saveRewardTag } from '../api/client';
+import { getRewardSettings, updateRewardSettings, sendRewardEmails, saveRewardTag, autoAssignTags } from '../api/client';
 
 export default function Rewards() {
   const [data,       setData]       = useState(null);
@@ -12,6 +12,10 @@ export default function Rewards() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tagInputs, setTagInputs] = useState({});  // { household_id: value }
   const [savingTag, setSavingTag] = useState(null); // household_id being saved
+  const [autoAssignOpen, setAutoAssignOpen] = useState(false);
+  const [autoAssignForm, setAutoAssignForm] = useState({ start_tag: '', end_tag: '' });
+  const [autoAssigning, setAutoAssigning] = useState(false);
+  const [autoAssignResult, setAutoAssignResult] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -74,10 +78,29 @@ export default function Rewards() {
     } finally { setSavingTag(null); }
   };
 
+  const handleAutoAssign = async () => {
+    const start = parseInt(autoAssignForm.start_tag);
+    const end = parseInt(autoAssignForm.end_tag);
+    if (!start || !end || start > end || start < 1) {
+      setError('Please enter a valid tag range (start ≤ end, both positive).');
+      return;
+    }
+    if (!window.confirm(`This will assign tags #${start}–#${end} to eligible households. Existing tags for this year will be overwritten. Continue?`)) return;
+    setAutoAssigning(true); setError('');
+    try {
+      const res = await autoAssignTags(start, end);
+      setAutoAssignResult(res.data);
+      setAutoAssignOpen(false);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Auto-assign failed.');
+    } finally { setAutoAssigning(false); }
+  };
+
   if (loading) return <div className="loading-page"><span className="spinner" /></div>;
   if (!data)   return <div className="page"><div className="container"><div className="alert alert-error">Failed to load rewards data. Check that the API is running and the settings table exists.</div></div></div>;
 
-  const { threshold, qualified, close, year } = data;
+  const { threshold, qualified, close, year, tag_info } = data;
 
   return (
     <div className="page">
@@ -87,9 +110,14 @@ export default function Rewards() {
             <h1>Volunteer Rewards</h1>
             <p>Send reward and nudge emails to households based on {year} hours</p>
           </div>
-          <button className="btn btn-secondary" onClick={() => setSettingsOpen(o => !o)}>
-            ⚙ Settings
-          </button>
+          <div style={{ display:'flex', gap:'0.5rem' }}>
+            <button className="btn btn-primary" onClick={() => { setAutoAssignOpen(true); setAutoAssignResult(null); }}>
+              Auto-Assign Tags
+            </button>
+            <button className="btn btn-secondary" onClick={() => setSettingsOpen(o => !o)}>
+              ⚙ Settings
+            </button>
+          </div>
         </div>
 
         {/* Result banner */}
@@ -105,6 +133,30 @@ export default function Rewards() {
           </div>
         )}
         {error && <div className="alert alert-error" style={{ marginBottom:'1.5rem' }}>{error}</div>}
+
+        {/* Auto-assign result */}
+        {autoAssignResult && (
+          <div className="alert alert-success" style={{ marginBottom:'1.5rem' }}>
+            ✓ {autoAssignResult.detail}
+            <span style={{ marginLeft:'1rem', fontSize:'0.85rem' }}>
+              {autoAssignResult.tags_remaining > 0 && `${autoAssignResult.tags_remaining} tags remaining for manual assignment. `}
+              {autoAssignResult.unassigned_households > 0 && `${autoAssignResult.unassigned_households} eligible household(s) did not receive a tag (not enough tags).`}
+            </span>
+            <button className="btn btn-ghost btn-sm" style={{ marginLeft:'1rem' }} onClick={() => setAutoAssignResult(null)}>Dismiss</button>
+          </div>
+        )}
+
+        {/* Tag inventory */}
+        {tag_info && (
+          <div style={{ background:'var(--fern)', borderRadius:'var(--radius)', padding:'0.75rem 1rem', marginBottom:'1.5rem', display:'flex', alignItems:'center', gap:'1.5rem', fontSize:'0.88rem' }}>
+            <span><strong>Tag Range:</strong> #{tag_info.start}–#{tag_info.end}</span>
+            <span><strong>Total:</strong> {tag_info.total}</span>
+            <span><strong>Assigned:</strong> {tag_info.assigned}</span>
+            <span style={{ color: tag_info.remaining > 0 ? 'var(--forest)' : 'var(--color-danger)', fontWeight:600 }}>
+              <strong>Remaining:</strong> {tag_info.remaining}
+            </span>
+          </div>
+        )}
 
         {/* Settings panel */}
         {settingsOpen && form && (
@@ -349,6 +401,75 @@ export default function Rewards() {
             </div>
           )}
         </div>
+        {/* Auto-Assign Tags Modal */}
+        {autoAssignOpen && (
+          <div className="modal-overlay" onClick={() => setAutoAssignOpen(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth:480 }}>
+              <div className="modal-header">
+                <h3>Auto-Assign Tags</h3>
+                <button className="btn btn-ghost btn-sm" onClick={() => setAutoAssignOpen(false)}>✕</button>
+              </div>
+
+              <p style={{ color:'var(--text-secondary)', marginBottom:'1rem', fontSize:'0.9rem' }}>
+                Enter the tag number range. Tags will be assigned in order based on the date each household
+                reached the {threshold}-hour threshold (earliest first).
+              </p>
+
+              {qualified.length === 0 && (
+                <div className="alert alert-info" style={{ marginBottom:'1rem' }}>
+                  No households have reached the threshold yet. There's nothing to assign.
+                </div>
+              )}
+
+              <div style={{ display:'flex', gap:'1rem', marginBottom:'1rem' }}>
+                <div className="form-group" style={{ flex:1 }}>
+                  <label>Start Tag #</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={autoAssignForm.start_tag}
+                    onChange={e => setAutoAssignForm(f => ({ ...f, start_tag: e.target.value }))}
+                    placeholder="e.g. 101"
+                  />
+                </div>
+                <div className="form-group" style={{ flex:1 }}>
+                  <label>End Tag #</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={autoAssignForm.end_tag}
+                    onChange={e => setAutoAssignForm(f => ({ ...f, end_tag: e.target.value }))}
+                    placeholder="e.g. 250"
+                  />
+                </div>
+              </div>
+
+              {autoAssignForm.start_tag && autoAssignForm.end_tag && parseInt(autoAssignForm.end_tag) >= parseInt(autoAssignForm.start_tag) && (
+                <div style={{ background:'var(--fern)', borderRadius:'var(--radius-sm)', padding:'0.75rem 1rem', marginBottom:'1rem', fontSize:'0.85rem' }}>
+                  <strong>{parseInt(autoAssignForm.end_tag) - parseInt(autoAssignForm.start_tag) + 1}</strong> tags available
+                  {' · '}
+                  <strong>{qualified.length}</strong> eligible household{qualified.length !== 1 ? 's' : ''}
+                  {qualified.length > (parseInt(autoAssignForm.end_tag) - parseInt(autoAssignForm.start_tag) + 1) && (
+                    <span style={{ color:'var(--color-danger)', marginLeft:'0.5rem' }}>
+                      ({qualified.length - (parseInt(autoAssignForm.end_tag) - parseInt(autoAssignForm.start_tag) + 1)} won't get a tag)
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="modal-footer">
+                <button className="btn btn-ghost" onClick={() => setAutoAssignOpen(false)}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleAutoAssign}
+                  disabled={autoAssigning || qualified.length === 0}
+                >
+                  {autoAssigning ? 'Assigning…' : 'Assign Tags'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
