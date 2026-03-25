@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getHours, getPendingHours } from '../api/client';
+import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 const currentYear = new Date().getFullYear();
@@ -92,6 +93,29 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Admin: test push notification */}
+        {user?.is_admin && (
+          <div style={{ marginBottom: '1rem' }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={async (e) => {
+                const btn = e.currentTarget;
+                btn.disabled = true;
+                btn.textContent = 'Sending...';
+                try {
+                  const res = await api.post('/push/test');
+                  btn.textContent = res.data.detail;
+                } catch (err) {
+                  btn.textContent = err.response?.data?.detail || 'Failed — check console';
+                }
+                setTimeout(() => { btn.disabled = false; btn.textContent = 'Test Push Notification'; }, 3000);
+              }}
+            >
+              Test Push Notification
+            </button>
+          </div>
+        )}
 
         {/* Admin actions */}
         {user?.is_admin && pendingCount > 0 && (
