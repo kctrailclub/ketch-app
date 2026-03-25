@@ -5,32 +5,6 @@ import { useAuth } from '../context/AuthContext';
 
 const currentYear = new Date().getFullYear();
 
-function IOSInstallBanner() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-    const dismissed = localStorage.getItem('ios_install_dismissed');
-    if (isIOS && !isStandalone && !dismissed) setShow(true);
-  }, []);
-  if (!show) return null;
-  return (
-    <div className="alert alert-info" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-      <div style={{ flex: 1 }}>
-        <strong>Install this app on your iPhone</strong>
-        <p style={{ margin: '0.25rem 0 0', fontSize: '0.88rem' }}>
-          Tap the <strong>Share</strong> button <span style={{ fontSize: '1.1rem' }}>&#x2191;</span> in Safari, then tap <strong>"Add to Home Screen"</strong> to get push notifications and quick access.
-        </p>
-      </div>
-      <button
-        onClick={() => { setShow(false); localStorage.setItem('ios_install_dismissed', '1'); }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 0.25rem', color: 'inherit' }}
-        aria-label="Dismiss"
-      >&times;</button>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const { user } = useAuth();
   const [myHours,      setMyHours]      = useState([]);
@@ -64,7 +38,6 @@ export default function Dashboard() {
   return (
     <div className="page">
       <div className="container">
-        <IOSInstallBanner />
         <div className="page-header">
           <div className="page-header-text">
             <h1>Welcome back, {user?.firstname}</h1>
