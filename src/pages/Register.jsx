@@ -27,9 +27,7 @@ export default function Register() {
       <div className="login-bg" />
       <div className="login-card">
         <div className="login-logo">
-          <svg width="40" height="40" viewBox="0 0 28 28" fill="none">
-            <path d="M14 3L4 13h4v2L5 18h5v2H9v5h10v-5h-1v-2h5l-3-3v-2h4L14 3z" fill="currentColor"/>
-          </svg>
+          <img src="/kctc-logo.svg" alt="Ken-Caryl Trail Club" style={{ height: 60 }} />
         </div>
         <h1>Request an Account</h1>
 

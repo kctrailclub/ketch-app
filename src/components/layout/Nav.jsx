@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import './Nav.css';
 
 const BrandLogo = () => (
-  <img src="/kcr-logo.png" alt="Ken-Caryl Ranch" style={{ height: 36, width: 'auto' }} />
+  <img src="/kctc-logo.svg" alt="Ken-Caryl Trail Club" style={{ height: 36, width: 'auto' }} />
 );
 
 export default function Nav() {

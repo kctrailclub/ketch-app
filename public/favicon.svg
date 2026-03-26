@@ -1,6 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="8" fill="#2a7f7f"/>
-  <polygon points="32,12 52,48 12,48" fill="#ffffff" opacity="0.95"/>
-  <polygon points="42,22 56,48 28,48" fill="#e8734a" opacity="0.85"/>
-  <line x1="20" y1="48" x2="56" y2="48" stroke="#2a7f7f" stroke-width="1"/>
+  <defs>
+    <clipPath id="s">
+      <path d="M32,4 L58,24 L54,58 Q32,64 10,58 L6,24 Z"/>
+    </clipPath>
+  </defs>
+  <!-- Shield -->
+  <path d="M32,4 L58,24 L54,58 Q32,64 10,58 L6,24 Z" fill="#fff" stroke="#4a4a4a" stroke-width="2"/>
+  <!-- Sky -->
+  <rect x="6" y="4" width="52" height="60" fill="#d4eaf0" clip-path="url(#s)"/>
+  <!-- Mountains -->
+  <polygon points="10,42 22,28 34,40 44,26 56,42" fill="#8bb5b5" opacity="0.5" clip-path="url(#s)"/>
+  <!-- Ground + trees -->
+  <rect x="6" y="40" width="52" height="24" fill="#3a7a6a" clip-path="url(#s)" opacity="0.8"/>
+  <polygon points="18,42 21,30 24,42" fill="#2d6b5e" clip-path="url(#s)"/>
+  <polygon points="28,42 32,28 36,42" fill="#35756a" clip-path="url(#s)"/>
+  <polygon points="38,42 41,31 44,42" fill="#2d6b5e" clip-path="url(#s)"/>
+  <!-- Trail -->
+  <path d="M32,42 Q30,48 32,54" fill="none" stroke="#e8e4dc" stroke-width="3" stroke-linecap="round" clip-path="url(#s)"/>
+  <!-- KC circle -->
+  <circle cx="32" cy="10" r="8" fill="#fff" stroke="#4a4a4a" stroke-width="1.5"/>
+  <text x="32" y="14" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="bold" fill="#c8913a">KC</text>
 </svg>
