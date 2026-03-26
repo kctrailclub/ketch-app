@@ -27,7 +27,7 @@ export default function Register() {
       <div className="login-bg" />
       <div className="login-card">
         <div className="login-logo">
-          <img src="/kctc-logo.svg" alt="Ken-Caryl Trail Club" style={{ height: 60 }} />
+          <img src="/kctc-logo.png" alt="Ken-Caryl Trail Club" style={{ height: 60 }} />
         </div>
         <h1>Request an Account</h1>
 
