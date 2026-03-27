@@ -74,7 +74,7 @@ export default function Rewards() {
     if (!tagNum || tagNum <= 0) return;
     setSavingTag(householdId);
     try {
-      await saveRewardTag(householdId, data.year, tagNum);
+      await saveRewardTag(householdId, data.year + 1, tagNum);
       await load();
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to save tag.');
@@ -104,6 +104,7 @@ export default function Rewards() {
   if (!data)   return <div className="page"><div className="container"><div className="alert alert-error">Failed to load rewards data. Check that the API is running and the settings table exists.</div></div></div>;
 
   const { threshold, qualified, close, year, tag_info } = data;
+  const tagYear = year + 1;  // hours earned in {year} → tag valid for {year+1}
 
   return (
     <div className="page">
@@ -111,7 +112,7 @@ export default function Rewards() {
         <div className="page-header">
           <div className="page-header-text">
             <h1>Volunteer Rewards</h1>
-            <p>Send reward and nudge emails to households based on {year} hours</p>
+            <p>{year} hours → {tagYear} tags</p>
           </div>
           <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
             <select
@@ -242,7 +243,7 @@ export default function Rewards() {
             <div>
               <h3>🎉 Reward Eligible — {qualified.length} household{qualified.length !== 1 ? 's' : ''}</h3>
               <p style={{ fontSize:'0.85rem', marginTop:'0.2rem' }}>
-                Reached {threshold}+ hours in {year}
+                Reached {threshold}+ hours in {year} — earning {tagYear} tags
               </p>
             </div>
             {qualified.length > 0 && (() => {
@@ -423,8 +424,8 @@ export default function Rewards() {
               </div>
 
               <p style={{ color:'var(--text-secondary)', marginBottom:'1rem', fontSize:'0.9rem' }}>
-                Enter the tag number range. Tags will be assigned in order based on the date each household
-                reached the {threshold}-hour threshold (earliest first).
+                Enter the tag number range for <strong>{tagYear}</strong> tags. Tags will be assigned in order based on the date each household
+                reached the {threshold}-hour threshold in {year} (earliest first).
               </p>
 
               {qualified.length === 0 && (
