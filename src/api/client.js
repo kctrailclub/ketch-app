@@ -120,8 +120,8 @@ export const updateProject = (id, data) =>
   api.patch(`/projects/${id}`, data);
 
 // ── Settings / Rewards ────────────────────────────────────────
-export const getRewardSettings = () =>
-  api.get('/settings/rewards');
+export const getRewardSettings = (year) =>
+  api.get('/settings/rewards', { params: year ? { year } : {} });
 
 export const getRewardThreshold = () =>
   api.get('/settings/rewards/threshold');
@@ -129,8 +129,8 @@ export const getRewardThreshold = () =>
 export const updateRewardSettings = (data) =>
   api.post('/settings/rewards', data);
 
-export const sendRewardEmails = (email_type, household_ids) =>
-  api.post('/settings/rewards/send', { email_type, household_ids });
+export const sendRewardEmails = (email_type, household_ids, year) =>
+  api.post('/settings/rewards/send', { email_type, household_ids, year });
 
 export const saveRewardTag = (household_id, year, tag_number) =>
   api.post('/settings/rewards/tag', { household_id, year, tag_number });
@@ -138,8 +138,8 @@ export const saveRewardTag = (household_id, year, tag_number) =>
 export const getRewardTags = (year) =>
   api.get('/settings/rewards/tags', { params: { year } });
 
-export const autoAssignTags = (start_tag, end_tag) =>
-  api.post('/settings/rewards/auto-assign-tags', { start_tag, end_tag });
+export const autoAssignTags = (start_tag, end_tag, year) =>
+  api.post('/settings/rewards/auto-assign-tags', { start_tag, end_tag, year });
 export const getNotifications = (unreadOnly = false) =>
   api.get('/notifications/', { params: { unread_only: unreadOnly } });
 

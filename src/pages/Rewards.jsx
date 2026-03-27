@@ -16,11 +16,14 @@ export default function Rewards() {
   const [autoAssignForm, setAutoAssignForm] = useState({ start_tag: '', end_tag: '' });
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [autoAssignResult, setAutoAssignResult] = useState(null);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
-  const load = async () => {
+  const load = async (yr) => {
+    const loadYear = yr ?? selectedYear;
     setLoading(true);
     try {
-      const res = await getRewardSettings();
+      const res = await getRewardSettings(loadYear);
       setData(res.data);
       // Initialize tag inputs from existing data
       const tags = {};
@@ -39,7 +42,7 @@ export default function Rewards() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(selectedYear); }, [selectedYear]);
 
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -58,7 +61,7 @@ export default function Rewards() {
   const handleSend = async (emailType, householdIds) => {
     setSending(emailType); setResult(null); setError('');
     try {
-      const res = await sendRewardEmails(emailType, householdIds);
+      const res = await sendRewardEmails(emailType, householdIds, selectedYear);
       setResult(res.data);
       await load();
     } catch (err) {
@@ -88,7 +91,7 @@ export default function Rewards() {
     if (!window.confirm(`This will assign tags #${start}–#${end} to eligible households. Existing tags for this year will be overwritten. Continue?`)) return;
     setAutoAssigning(true); setError('');
     try {
-      const res = await autoAssignTags(start, end);
+      const res = await autoAssignTags(start, end, selectedYear);
       setAutoAssignResult(res.data);
       setAutoAssignOpen(false);
       await load();
@@ -110,7 +113,16 @@ export default function Rewards() {
             <h1>Volunteer Rewards</h1>
             <p>Send reward and nudge emails to households based on {year} hours</p>
           </div>
-          <div style={{ display:'flex', gap:'0.5rem' }}>
+          <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+            <select
+              value={selectedYear}
+              onChange={e => { setSelectedYear(parseInt(e.target.value)); setTagInputs({}); }}
+              style={{ minWidth:90 }}
+            >
+              {Array.from({ length: 5 }, (_, i) => currentYear - i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
             <button className="btn btn-primary" onClick={() => { setAutoAssignOpen(true); setAutoAssignResult(null); }}>
               Auto-Assign Tags
             </button>
