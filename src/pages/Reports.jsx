@@ -137,13 +137,14 @@ export default function Reports() {
   useEffect(() => { fetchYear(youthYear); }, [youthYear]);
   useEffect(() => { fetchYear(memberYear); }, [memberYear]);
 
-  // Fetch reward tags for memberYear
+  // Fetch reward tags for memberYear+1 (hours in 2025 earn a 2026 tag)
+  const tagYear = memberYear + 1;
   useEffect(() => {
-    if (tagsCache[memberYear]) return;
-    getRewardTags(memberYear).then(res => {
-      setTagsCache(prev => ({ ...prev, [memberYear]: res.data }));
+    if (tagsCache[tagYear]) return;
+    getRewardTags(tagYear).then(res => {
+      setTagsCache(prev => ({ ...prev, [tagYear]: res.data }));
     }).catch(() => {});
-  }, [memberYear]);
+  }, [tagYear]);
 
   // ── Helper: apply member credit % ───────────────────────────
   const credited = (h) => h.hours * ((h.member_credit_pct ?? 100) / 100);
@@ -245,8 +246,8 @@ export default function Reports() {
       hhMap[ind.household_id].members.push(ind);
     });
 
-    // Build tag lookup for the selected year
-    const yearTags = tagsCache[memberYear] || [];
+    // Build tag lookup — hours in memberYear earn a memberYear+1 tag
+    const yearTags = tagsCache[memberYear + 1] || [];
     const tagLookup = {};
     yearTags.forEach(t => { tagLookup[t.household_id] = t.tag_number; });
 
@@ -598,7 +599,7 @@ export default function Reports() {
                       { label:'Household',       value: r => r.name },
                       { label:'Active Members',  value: r => r.member_count },
                       { label:'Total Hours',     value: r => r.hours },
-                      { label:'Tag #',           value: r => r.tag_number || '' },
+                      { label:`${memberYear + 1} Tag #`, value: r => r.tag_number || '' },
                     ],
                     memberData.householdRows
                   )} />
@@ -610,7 +611,7 @@ export default function Reports() {
                   <div className="table-wrapper">
                     <table>
                       <thead>
-                        <tr><th>#</th><th>Household</th><th>Members</th><th>Total Hours</th><th>Tag #</th><th></th></tr>
+                        <tr><th>#</th><th>Household</th><th>Members</th><th>Total Hours</th><th>{memberYear + 1} Tag #</th><th></th></tr>
                       </thead>
                       <tbody>
                         {memberData.householdRows.map((hh, i) => (
