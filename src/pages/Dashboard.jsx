@@ -38,6 +38,9 @@ export default function Dashboard() {
   return (
     <div className="page">
       <div className="container">
+        <div style={{ background:'linear-gradient(135deg, #FA4616, #0021A5)', color:'#fff', textAlign:'center', padding:'12px 16px', borderRadius:8, marginBottom:16, fontWeight:700, fontSize:'1.1rem', letterSpacing:1 }}>
+          🐊 Go Gators! 🐊
+        </div>
         <div className="page-header">
           <div className="page-header-text">
             <h1>Welcome back, {user?.firstname}</h1>
