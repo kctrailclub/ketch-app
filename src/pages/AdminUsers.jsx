@@ -44,13 +44,13 @@ export default function AdminUsers() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
-    setForm({ firstname:'', lastname:'', email:'', phone:'', is_admin:false, youth:false, household_option:'new', household_id:'' });
+    setForm({ firstname:'', lastname:'', email:'', phone:'', is_admin:false, youth:false, is_tester:false, household_option:'new', household_id:'' });
     setModal('create');
     setError('');
   };
 
   const openEdit = (u) => {
-    setForm({ firstname:u.firstname, lastname:u.lastname, email:u.email, phone:u.phone, is_admin:u.is_admin, is_active:u.is_active, youth:u.youth, household_id:u.household_id || '', new_password:'', showPass:false });
+    setForm({ firstname:u.firstname, lastname:u.lastname, email:u.email, phone:u.phone, is_admin:u.is_admin, is_active:u.is_active, youth:u.youth, is_tester:u.is_tester, household_id:u.household_id || '', new_password:'', showPass:false });
     setModal(u);
     setError('');
   };
@@ -750,6 +750,10 @@ export default function AdminUsers() {
                 <label style={{ display:'flex', alignItems:'center', gap:'0.4rem', cursor:'pointer', textTransform:'none', fontSize:'0.9rem', fontWeight:400 }}>
                   <input type="checkbox" checked={!!form.youth} onChange={e => set('youth', e.target.checked)} style={{ width:'auto' }} />
                   Youth member
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:'0.4rem', cursor:'pointer', textTransform:'none', fontSize:'0.9rem', fontWeight:400 }}>
+                  <input type="checkbox" checked={!!form.is_tester} onChange={e => set('is_tester', e.target.checked)} style={{ width:'auto' }} />
+                  Tester
                 </label>
                 {modal !== 'create' && (
                   <label style={{ display:'flex', alignItems:'center', gap:'0.4rem', cursor:'pointer', textTransform:'none', fontSize:'0.9rem', fontWeight:400 }}>
