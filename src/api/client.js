@@ -208,6 +208,22 @@ export const deleteResourceDocument = (id) =>
 
 export const bulkCreateHouseholds = () => api.post('/users/bulk-households');
 
+// ── Strava ──────────────────────────────────────────────────
+export const getStravaAuthUrl = () => api.get('/strava/auth-url');
+export const stravaCallback = (code) => api.post('/strava/callback', { code });
+export const getStravaConnection = () => api.get('/strava/connection');
+export const disconnectStrava = () => api.delete('/strava/connection');
+export const getStravaSegments = (includeInactive = false) =>
+  api.get('/strava/segments', { params: { include_inactive: includeInactive } });
+export const addStravaSegment = (data) => api.post('/strava/segments', data);
+export const updateStravaSegment = (id, data) => api.patch(`/strava/segments/${id}`, data);
+export const deleteStravaSegment = (id) => api.delete(`/strava/segments/${id}`);
+export const refreshStravaSegment = (id) => api.post(`/strava/segments/${id}/refresh`);
+export const syncStravaEfforts = () => api.post('/strava/sync');
+export const getSegmentLeaderboard = (segmentId) => api.get(`/strava/segments/${segmentId}/leaderboard`);
+export const getMySegmentEfforts = (segmentId) => api.get(`/strava/segments/${segmentId}/my-efforts`);
+export const getMyStravaStats = () => api.get('/strava/my-stats');
+
 // Push notifications
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key');
 export const subscribePush = (subscription) => api.post('/push/subscribe', subscription);

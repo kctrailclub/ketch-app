@@ -3,12 +3,15 @@ import {
   getSponsors, createSponsor, updateSponsor, deleteSponsor,
   getResourceUpdates, createResourceUpdate, editResourceUpdate, deleteResourceUpdate,
   getResourceDocuments, createResourceDocument, updateResourceDocument, deleteResourceDocument,
+  getStravaSegments, addStravaSegment, updateStravaSegment, deleteStravaSegment, refreshStravaSegment,
+  getStravaConnection,
 } from '../api/client';
 
 const TABS = [
   { id: 'updates',   label: 'Updates' },
   { id: 'documents', label: 'Documents' },
   { id: 'sponsors',  label: 'Sponsors' },
+  { id: 'segments',  label: 'Segments' },
 ];
 
 const TYPE_OPTIONS = [
@@ -555,6 +558,227 @@ function SponsorsTab() {
   );
 }
 
+// ── Segments Tab ───────────────────────────────────────────
+function SegmentsTab() {
+  const [items, setItems]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [modal, setModal]         = useState(null); // null | 'add' | segment obj
+  const [form, setForm]           = useState({});
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState('');
+  const [connected, setConnected] = useState(null); // null = loading, true/false
+
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      getStravaSegments(true).then(r => setItems(r.data)),
+      getStravaConnection().then(r => setConnected(r.data.connected)).catch(() => setConnected(false)),
+    ]).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const openAdd = () => {
+    setForm({ strava_segment_id: '', sort_order: 0 });
+    setError('');
+    setModal('add');
+  };
+
+  const openEdit = (s) => {
+    setForm({ name: s.name, sort_order: s.sort_order, is_active: s.is_active });
+    setError('');
+    setModal(s);
+  };
+
+  const handleSave = async () => {
+    setError('');
+    setSaving(true);
+    try {
+      if (modal === 'add') {
+        const segId = parseInt(form.strava_segment_id);
+        if (!segId || segId <= 0) {
+          setError('Enter a valid Strava Segment ID');
+          setSaving(false);
+          return;
+        }
+        await addStravaSegment({ strava_segment_id: segId, sort_order: parseInt(form.sort_order) || 0 });
+      } else {
+        await updateStravaSegment(modal.segment_id, {
+          name: form.name,
+          sort_order: parseInt(form.sort_order) || 0,
+          is_active: form.is_active,
+        });
+      }
+      setModal(null);
+      load();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (s) => {
+    if (!window.confirm(`Delete segment "${s.name}"? All associated member efforts will also be removed.`)) return;
+    try {
+      await deleteStravaSegment(s.segment_id);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to delete');
+    }
+  };
+
+  const handleRefresh = async (s) => {
+    try {
+      await refreshStravaSegment(s.segment_id);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to refresh');
+    }
+  };
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const formatDistance = (meters) => {
+    if (!meters) return '—';
+    return `${(meters / 1609.34).toFixed(2)} mi`;
+  };
+
+  if (loading) return <span className="spinner" />;
+
+  return (
+    <>
+      {connected === false && (
+        <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+          You need to connect your Strava account on the <a href="/resources" style={{ fontWeight: 600 }}>Resources page</a> before you can add segments.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+          Add trail segments by their Strava Segment ID. Find IDs on <a href="https://www.strava.com/segments/explore" target="_blank" rel="noopener noreferrer" style={{ color: '#FC4C02' }}>Strava Segment Explorer</a>.
+        </p>
+        <button className="btn btn-primary btn-sm" onClick={openAdd} disabled={!connected}>+ Add Segment</button>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="empty-state"><p>No featured segments yet</p></div>
+      ) : (
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Distance</th>
+                <th>Grade</th>
+                <th>Order</th>
+                <th>Status</th>
+                <th style={{ width: 180 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(s => (
+                <tr key={s.segment_id} style={{ opacity: s.is_active ? 1 : 0.5 }}>
+                  <td>
+                    <div>
+                      <strong>{s.name}</strong>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {s.strava_segment_id}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <span style={{
+                      fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase',
+                      padding: '0.15rem 0.5rem', borderRadius: 999,
+                      background: s.activity_type === 'Run' ? '#DBEAFE' : '#F3F4F6',
+                      color: s.activity_type === 'Run' ? '#1E40AF' : '#374151',
+                    }}>
+                      {s.activity_type}
+                    </span>
+                  </td>
+                  <td>{formatDistance(s.distance)}</td>
+                  <td>{s.average_grade != null ? `${s.average_grade}%` : '—'}</td>
+                  <td>{s.sort_order}</td>
+                  <td>
+                    <span className={`badge ${s.is_active ? 'badge-approved' : 'badge-rejected'}`}>
+                      {s.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>Edit</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleRefresh(s)} title="Re-fetch from Strava">Refresh</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(s)}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modal && (
+        <Modal title={modal === 'add' ? 'Add Segment' : 'Edit Segment'} onClose={() => setModal(null)}>
+          {error && <div className="alert alert-error">{error}</div>}
+          {modal === 'add' ? (
+            <>
+              <div className="form-group">
+                <label>Strava Segment ID</label>
+                <input
+                  type="number"
+                  value={form.strava_segment_id}
+                  onChange={e => set('strava_segment_id', e.target.value)}
+                  placeholder="e.g. 12345678"
+                  required
+                />
+                <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                  Find this in the Strava segment URL: strava.com/segments/<strong>[ID]</strong>
+                </small>
+              </div>
+              <div className="form-group">
+                <label>Sort Order</label>
+                <input type="number" value={form.sort_order} onChange={e => set('sort_order', e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="form-group">
+                <label>Name</label>
+                <input value={form.name} onChange={e => set('name', e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Sort Order</label>
+                <input type="number" value={form.sort_order} onChange={e => set('sort_order', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={!!form.is_active}
+                    onChange={e => set('is_active', e.target.checked ? 1 : 0)}
+                    style={{ width: 'auto', marginRight: '0.5rem' }}
+                  />
+                  Active
+                </label>
+              </div>
+            </>
+          )}
+          <div className="modal-footer">
+            <button className="btn btn-ghost" onClick={() => setModal(null)}>Cancel</button>
+            <button
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={saving || (modal === 'add' && !form.strava_segment_id)}
+            >
+              {saving ? (modal === 'add' ? 'Fetching from Strava...' : 'Saving...') : 'Save'}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 // ── Main Admin Resources Page ───────────────────────────────
 export default function AdminResources() {
   const [tab, setTab] = useState('updates');
@@ -603,6 +827,7 @@ export default function AdminResources() {
           {tab === 'updates'   && <UpdatesTab />}
           {tab === 'documents' && <DocumentsTab />}
           {tab === 'sponsors'  && <SponsorsTab />}
+          {tab === 'segments'  && <SegmentsTab />}
         </div>
       </div>
     </div>
