@@ -222,7 +222,17 @@ export const refreshStravaSegment = (id) => api.post(`/strava/segments/${id}/ref
 export const syncStravaEfforts = () => api.post('/strava/sync');
 export const getSegmentLeaderboard = (segmentId) => api.get(`/strava/segments/${segmentId}/leaderboard`);
 export const getMySegmentEfforts = (segmentId) => api.get(`/strava/segments/${segmentId}/my-efforts`);
-export const getMyStravaStats = () => api.get('/strava/my-stats');
+
+// Strava Trails
+export const getStravaTrails = (year, includeInactive = false) =>
+  api.get('/strava/trails', { params: { year, include_inactive: includeInactive } });
+export const createStravaTrail = (data) => api.post('/strava/trails', data);
+export const updateStravaTrail = (id, data) => api.patch(`/strava/trails/${id}`, data);
+export const deleteStravaTrail = (id) => api.delete(`/strava/trails/${id}`);
+export const addSegmentToTrail = (trailId, data) => api.post(`/strava/trails/${trailId}/segments`, data);
+export const removeSegmentFromTrail = (trailId, segmentId) => api.delete(`/strava/trails/${trailId}/segments/${segmentId}`);
+export const getTrailsChallenge = (year) => api.get('/strava/trails-challenge', { params: { year } });
+export const getTrailsChallengeLeaderboard = (year) => api.get('/strava/trails-challenge/leaderboard', { params: { year } });
 
 // Push notifications
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key');

@@ -5,6 +5,8 @@ import {
   getResourceDocuments, createResourceDocument, updateResourceDocument, deleteResourceDocument,
   getStravaSegments, addStravaSegment, updateStravaSegment, deleteStravaSegment, refreshStravaSegment,
   getStravaConnection, getStravaAuthUrl,
+  getStravaTrails, createStravaTrail, updateStravaTrail, deleteStravaTrail,
+  addSegmentToTrail, removeSegmentFromTrail,
 } from '../api/client';
 
 const TABS = [
@@ -12,6 +14,7 @@ const TABS = [
   { id: 'documents', label: 'Documents' },
   { id: 'sponsors',  label: 'Sponsors' },
   { id: 'segments',  label: 'Segments' },
+  { id: 'trails',    label: 'Trails' },
 ];
 
 const TYPE_OPTIONS = [
@@ -791,6 +794,318 @@ function SegmentsTab() {
   );
 }
 
+// ── Trails Tab ────────────────────────────────────────────
+function TrailsTab() {
+  const [trails, setTrails]         = useState([]);
+  const [segments, setSegments]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [modal, setModal]           = useState(null); // null | 'add' | trail obj
+  const [form, setForm]             = useState({});
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState('');
+  const [expanded, setExpanded]     = useState(null);
+  const [mapModal, setMapModal]     = useState(null); // trail_id
+  const [mapForm, setMapForm]       = useState({ segment_id: '', segment_order: 0 });
+
+  const currentYear = new Date().getFullYear();
+
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      getStravaTrails(currentYear, true).then(r => setTrails(r.data)),
+      getStravaSegments(true).then(r => setSegments(r.data)),
+    ]).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const openAdd = () => {
+    setForm({ name: '', distance_miles: '', elevation_feet: '', sort_order: 0, year: currentYear });
+    setError('');
+    setModal('add');
+  };
+
+  const openEdit = (t) => {
+    setForm({
+      name: t.name,
+      distance_miles: t.distance_miles || '',
+      elevation_feet: t.elevation_feet || '',
+      sort_order: t.sort_order,
+      is_active: t.is_active,
+    });
+    setError('');
+    setModal(t);
+  };
+
+  const handleSave = async () => {
+    setError('');
+    if (!form.name?.trim()) { setError('Name is required'); return; }
+    setSaving(true);
+    try {
+      if (modal === 'add') {
+        await createStravaTrail({
+          name: form.name.trim(),
+          distance_miles: form.distance_miles ? parseFloat(form.distance_miles) : null,
+          elevation_feet: form.elevation_feet ? parseInt(form.elevation_feet) : null,
+          year: parseInt(form.year) || currentYear,
+          sort_order: parseInt(form.sort_order) || 0,
+        });
+      } else {
+        await updateStravaTrail(modal.trail_id, {
+          name: form.name.trim(),
+          distance_miles: form.distance_miles ? parseFloat(form.distance_miles) : null,
+          elevation_feet: form.elevation_feet ? parseInt(form.elevation_feet) : null,
+          sort_order: parseInt(form.sort_order) || 0,
+          is_active: form.is_active,
+        });
+      }
+      setModal(null);
+      load();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (t) => {
+    if (!window.confirm(`Delete trail "${t.name}"? This will also remove all segment mappings.`)) return;
+    try {
+      await deleteStravaTrail(t.trail_id);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to delete');
+    }
+  };
+
+  const handleAddSegment = async () => {
+    if (!mapForm.segment_id) return;
+    try {
+      await addSegmentToTrail(mapModal, {
+        segment_id: parseInt(mapForm.segment_id),
+        segment_order: parseInt(mapForm.segment_order) || 0,
+      });
+      setMapModal(null);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to add segment');
+    }
+  };
+
+  const handleRemoveSegment = async (trailId, segmentId) => {
+    if (!window.confirm('Remove this segment from the trail?')) return;
+    try {
+      await removeSegmentFromTrail(trailId, segmentId);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to remove');
+    }
+  };
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  if (loading) return <span className="spinner" />;
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+          Create trails and map Strava segments to each trail for the Trails Challenge.
+        </p>
+        <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Trail</button>
+      </div>
+
+      {trails.length === 0 ? (
+        <div className="empty-state"><p>No trails yet</p></div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {trails.map(t => (
+            <div key={t.trail_id} style={{
+              border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+              overflow: 'hidden', opacity: t.is_active ? 1 : 0.5,
+            }}>
+              {/* Trail header */}
+              <div style={{
+                padding: '0.75rem 1rem', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', background: 'var(--fern)',
+              }}>
+                <div
+                  style={{ flex: 1, cursor: 'pointer' }}
+                  onClick={() => setExpanded(expanded === t.trail_id ? null : t.trail_id)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <strong>{t.name}</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      ({t.segment_count} segment{t.segment_count !== 1 ? 's' : ''})
+                    </span>
+                    {!t.is_active && (
+                      <span className="badge badge-rejected" style={{ fontSize: '0.65rem' }}>Inactive</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '1rem' }}>
+                    {t.distance_miles && <span>{t.distance_miles} mi</span>}
+                    {t.elevation_feet && <span>{t.elevation_feet.toLocaleString()} ft</span>}
+                    <span>Order: {t.sort_order}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openEdit(t)}>Edit</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => {
+                    setMapForm({ segment_id: '', segment_order: t.segment_count });
+                    setMapModal(t.trail_id);
+                  }}>+ Segment</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(t)}>Delete</button>
+                </div>
+              </div>
+
+              {/* Segments list (expandable) */}
+              {expanded === t.trail_id && (
+                <div style={{ padding: '0.5rem 1rem' }}>
+                  {t.segments.length === 0 ? (
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
+                      No segments mapped yet. Click "+ Segment" to add.
+                    </p>
+                  ) : (
+                    <table style={{ fontSize: '0.85rem', width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 50 }}>Order</th>
+                          <th>Segment</th>
+                          <th>Type</th>
+                          <th style={{ width: 80 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {t.segments.map(s => (
+                          <tr key={s.segment_id}>
+                            <td>{s.segment_order}</td>
+                            <td>
+                              <div>{s.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Strava ID: {s.strava_segment_id}
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{
+                                fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase',
+                                padding: '0.1rem 0.4rem', borderRadius: 999,
+                                background: s.activity_type === 'Run' ? '#DBEAFE' : '#F3F4F6',
+                                color: s.activity_type === 'Run' ? '#1E40AF' : '#374151',
+                              }}>
+                                {s.activity_type}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleRemoveSegment(t.trail_id, s.segment_id)}
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add/Edit trail modal */}
+      {modal && (
+        <Modal title={modal === 'add' ? 'Add Trail' : 'Edit Trail'} onClose={() => setModal(null)}>
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="form-group">
+            <label>Trail Name</label>
+            <input value={form.name} onChange={e => set('name', e.target.value)} required />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Distance (miles)</label>
+              <input type="number" step="0.01" value={form.distance_miles} onChange={e => set('distance_miles', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Elevation (feet)</label>
+              <input type="number" value={form.elevation_feet} onChange={e => set('elevation_feet', e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Sort Order</label>
+              <input type="number" value={form.sort_order} onChange={e => set('sort_order', e.target.value)} />
+            </div>
+            {modal === 'add' && (
+              <div className="form-group">
+                <label>Year</label>
+                <input type="number" value={form.year} onChange={e => set('year', e.target.value)} />
+              </div>
+            )}
+          </div>
+          {modal !== 'add' && (
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!!form.is_active}
+                  onChange={e => set('is_active', e.target.checked ? 1 : 0)}
+                  style={{ width: 'auto', marginRight: '0.5rem' }}
+                />
+                Active
+              </label>
+            </div>
+          )}
+          <div className="modal-footer">
+            <button className="btn btn-ghost" onClick={() => setModal(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving || !form.name?.trim()}>
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Map segment to trail modal */}
+      {mapModal && (
+        <Modal title="Add Segment to Trail" onClose={() => setMapModal(null)}>
+          <div className="form-group">
+            <label>Segment</label>
+            <select value={mapForm.segment_id} onChange={e => setMapForm(f => ({ ...f, segment_id: e.target.value }))}>
+              <option value="">Select a segment...</option>
+              {segments
+                .filter(s => s.is_active)
+                .map(s => (
+                  <option key={s.segment_id} value={s.segment_id}>
+                    {s.name} ({s.activity_type})
+                  </option>
+                ))
+              }
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Segment Order</label>
+            <input
+              type="number"
+              value={mapForm.segment_order}
+              onChange={e => setMapForm(f => ({ ...f, segment_order: e.target.value }))}
+            />
+            <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+              Order within this trail (0 = first)
+            </small>
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-ghost" onClick={() => setMapModal(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleAddSegment} disabled={!mapForm.segment_id}>
+              Add Segment
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 // ── Main Admin Resources Page ───────────────────────────────
 export default function AdminResources() {
   const [tab, setTab] = useState('updates');
@@ -840,6 +1155,7 @@ export default function AdminResources() {
           {tab === 'documents' && <DocumentsTab />}
           {tab === 'sponsors'  && <SponsorsTab />}
           {tab === 'segments'  && <SegmentsTab />}
+          {tab === 'trails'    && <TrailsTab />}
         </div>
       </div>
     </div>
