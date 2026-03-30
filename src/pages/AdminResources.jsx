@@ -4,7 +4,7 @@ import {
   getResourceUpdates, createResourceUpdate, editResourceUpdate, deleteResourceUpdate,
   getResourceDocuments, createResourceDocument, updateResourceDocument, deleteResourceDocument,
   getStravaSegments, addStravaSegment, updateStravaSegment, deleteStravaSegment, refreshStravaSegment,
-  getStravaConnection,
+  getStravaConnection, getStravaAuthUrl,
 } from '../api/client';
 
 const TABS = [
@@ -648,8 +648,20 @@ function SegmentsTab() {
   return (
     <>
       {connected === false && (
-        <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
-          You need to connect your Strava account on the <a href="/resources" style={{ fontWeight: 600 }}>Resources page</a> before you can add segments.
+        <div className="alert alert-error" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <span>Connect your Strava account to add and manage segments.</span>
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ background: '#FC4C02', borderColor: '#FC4C02' }}
+            onClick={async () => {
+              try {
+                const res = await getStravaAuthUrl();
+                window.location.href = res.data.url;
+              } catch { alert('Strava integration is not available'); }
+            }}
+          >
+            Connect with Strava
+          </button>
         </div>
       )}
 

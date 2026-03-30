@@ -44,7 +44,8 @@ export default function Nav() {
       { to: '/admin/projects',    label: 'Projects' },
       { to: '/admin/reports',     label: 'Reports' },
       { to: '/admin/rewards',     label: 'Rewards' },
-      { to: '/admin/resources',   label: 'Resources' },
+      { to: '/admin/resources',   label: 'Manage Resources' },
+      { to: '/resources',         label: 'Resources' },
     ] : [
       { to: '/household', label: 'Household' },
       { to: '/resources', label: 'Resources' },
