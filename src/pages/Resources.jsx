@@ -127,7 +127,6 @@ function StravaSection() {
   };
 
   if (loading) return null; // Don't show anything while loading
-  if (!segments.length && !connection?.connected) return null; // Nothing to show
 
   return (
     <>
