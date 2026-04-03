@@ -38,7 +38,7 @@ export default function AdminHouseholds() {
   };
 
   const openEdit = (h) => {
-    setForm({ name: h.name, address: h.address });
+    setForm({ name: h.name, address: h.address, primary_user_id: h.primary_user_id || null });
     setModal(h);
     setError('');
   };
@@ -141,20 +141,24 @@ export default function AdminHouseholds() {
             <div className="table-wrapper">
               <table>
                 <thead>
-                  <tr><th>Code</th><th>Name</th><th>Address</th><th>Members</th><th>Actions</th></tr>
+                  <tr><th>Code</th><th>Name</th><th>Address</th><th>Primary Contact</th><th>Members</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {filtered.map(h => (
-                    <tr key={h.household_id}>
-                      <td><code style={{fontSize:'0.82rem',background:'var(--fern)',padding:'0.15rem 0.4rem',borderRadius:4}}>{h.household_code}</code></td>
-                      <td><strong>{h.name}</strong></td>
-                      <td>{h.address || '—'}</td>
-                      <td>{h.member_count}</td>
-                      <td>
-                        <button className="btn btn-secondary btn-sm" onClick={() => openEdit(h)}>Edit</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map(h => {
+                    const primary = h.primary_user_id ? users.find(u => u.user_id === h.primary_user_id) : null;
+                    return (
+                      <tr key={h.household_id}>
+                        <td><code style={{fontSize:'0.82rem',background:'var(--fern)',padding:'0.15rem 0.4rem',borderRadius:4}}>{h.household_code}</code></td>
+                        <td><strong>{h.name}</strong></td>
+                        <td>{h.address || '—'}</td>
+                        <td>{primary ? `${primary.firstname} ${primary.lastname}` : '—'}</td>
+                        <td>{h.member_count}</td>
+                        <td>
+                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(h)}>Edit</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -188,40 +192,65 @@ export default function AdminHouseholds() {
                   <div style={{ marginBottom:'1rem' }}>
                     <label style={{ display:'block', marginBottom:'0.5rem' }}>Members</label>
                     <div style={{ border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', overflow:'hidden' }}>
-                      {members.map((m, i) => (
-                        <div key={m.user_id} style={{
-                          display:'flex', alignItems:'center', justifyContent:'space-between',
-                          padding:'0.6rem 0.85rem',
-                          borderBottom: i < members.length - 1 ? '1px solid var(--border)' : 'none',
-                          background: i % 2 === 0 ? 'var(--white)' : 'var(--fern)',
-                        }}>
-                          <div>
-                            <span style={{ fontWeight:500, fontSize:'0.9rem' }}>{m.firstname} {m.lastname}</span>
-                            {m.is_admin && <span className="badge badge-admin" style={{ marginLeft:'0.5rem', fontSize:'0.7rem' }}>Admin</span>}
+                      {members.map((m, i) => {
+                        const isPrimary = form.primary_user_id === m.user_id;
+                        return (
+                          <div key={m.user_id} style={{
+                            display:'flex', alignItems:'center', justifyContent:'space-between',
+                            padding:'0.6rem 0.85rem',
+                            borderBottom: i < members.length - 1 ? '1px solid var(--border)' : 'none',
+                            background: i % 2 === 0 ? 'var(--white)' : 'var(--fern)',
+                          }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                              <span style={{ fontWeight:500, fontSize:'0.9rem' }}>{m.firstname} {m.lastname}</span>
+                              {isPrimary && (
+                                <span title="Primary Contact" style={{
+                                  display:'inline-flex', alignItems:'center', justifyContent:'center',
+                                  width:20, height:20, borderRadius:'50%',
+                                  background:'var(--primary)', color:'#fff',
+                                  fontSize:'0.7rem', fontWeight:700,
+                                }}>P</span>
+                              )}
+                              {m.is_admin && <span className="badge badge-admin" style={{ fontSize:'0.7rem' }}>Admin</span>}
+                            </div>
+                            <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+                              {!isPrimary && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ fontSize:'0.75rem' }}
+                                  onClick={() => set('primary_user_id', m.user_id)}
+                                >
+                                  Set as Primary
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={async () => {
+                                  if (!confirm(`Remove ${m.firstname} ${m.lastname} from this household? They will become unassigned.`)) return;
+                                  try {
+                                    await removeMember(modal.household_id, m.user_id);
+                                    await load();
+                                    const updated = households.find(h => h.household_id === modal.household_id);
+                                    if (updated) {
+                                      setForm(f => ({ ...f, primary_user_id: updated.primary_user_id || null }));
+                                      setModal(updated);
+                                    }
+                                  } catch (err) {
+                                    alert(err.response?.data?.detail || 'Failed to remove member.');
+                                  }
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={async () => {
-                              if (!confirm(`Remove ${m.firstname} ${m.lastname} from this household? They will become unassigned.`)) return;
-                              try {
-                                await removeMember(modal.household_id, m.user_id);
-                                await load();
-                                // Update modal to reflect new member list
-                                const updated = households.find(h => h.household_id === modal.household_id);
-                                if (updated) setModal(updated);
-                              } catch (err) {
-                                alert(err.response?.data?.detail || 'Failed to remove member.');
-                              }
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <p style={{ fontSize:'0.8rem', color:'var(--text-muted)', marginTop:'0.4rem' }}>
-                      Removed members will be unassigned and can join another household later.
+                      Click "Set as Primary" to designate the household contact for reward emails.
                     </p>
                   </div>
                 ) : null;
