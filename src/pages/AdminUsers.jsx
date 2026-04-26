@@ -112,7 +112,7 @@ export default function AdminUsers() {
 
   const openApproveModal = (reg) => {
     setApproveModal(reg);
-    setApproveHH({ option:'new', household_id:'' });
+    setApproveHH({ option:'new', household_id:'', waiver:'', household_address:'' });
   };
 
   const handleApproveReg = async () => {
@@ -122,7 +122,9 @@ export default function AdminUsers() {
       body.household_id = parseInt(approveHH.household_id);
     } else if (approveHH.option === 'new') {
       body.create_household = true;
+      if (approveHH.household_address) body.household_address = approveHH.household_address;
     }
+    if (approveHH.waiver) body.waiver = approveHH.waiver;
     try {
       await approveRegistration(reg.request_id, body);
       setApproveModal(null);
@@ -327,10 +329,23 @@ export default function AdminUsers() {
                   </select>
                 )}
                 {approveHH.option === 'new' && (
-                  <span style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
-                    A new household "{approveModal.lastname}" will be created.
-                  </span>
+                  <>
+                    <input value={approveHH.household_address || ''} onChange={e => setApproveHH(prev => ({ ...prev, household_address: e.target.value }))}
+                      placeholder="Household address (optional)" style={{ marginBottom:'0.4rem' }} />
+                    <span style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
+                      A new household "{approveModal.lastname}" will be created.
+                    </span>
+                  </>
                 )}
+              </div>
+              <div className="form-group">
+                <label>Waiver Date</label>
+                <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+                  <input type="date" value={approveHH.waiver || ''} onChange={e => setApproveHH(prev => ({ ...prev, waiver: e.target.value }))} style={{ flex:1 }} />
+                  {approveHH.waiver && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setApproveHH(prev => ({ ...prev, waiver: '' }))} title="Clear waiver date">Clear</button>
+                  )}
+                </div>
               </div>
               <div className="modal-footer">
                 <button className="btn btn-ghost" onClick={() => setApproveModal(null)}>Cancel</button>
