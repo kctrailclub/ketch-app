@@ -44,7 +44,7 @@ export default function AdminUsers() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
-    setForm({ firstname:'', lastname:'', email:'', phone:'', is_admin:false, youth:false, is_tester:false, household_option:'new', household_id:'' });
+    setForm({ firstname:'', lastname:'', email:'', phone:'', is_admin:false, youth:false, is_tester:false, household_option:'new', household_id:'', waiver:'' });
     setModal('create');
     setError('');
   };
@@ -68,6 +68,7 @@ export default function AdminUsers() {
         phone: form.phone,
         is_admin: form.is_admin,
         youth: form.youth,
+        waiver: form.waiver || null,
       };
       if (form.household_option === 'existing' && form.household_id) {
         payload.household_id = parseInt(form.household_id);
@@ -749,24 +750,22 @@ export default function AdminUsers() {
                 </div>
               )}
 
-              {modal !== 'create' && (
-                <div className="form-group">
-                  <label>Waiver Date</label>
-                  <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
-                    <input
-                      type="date"
-                      value={form.waiver || ''}
-                      onChange={e => set('waiver', e.target.value)}
-                      style={{ flex:1 }}
-                    />
-                    {form.waiver && (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => set('waiver', '')} title="Clear waiver date">
-                        Clear
-                      </button>
-                    )}
-                  </div>
+              <div className="form-group">
+                <label>Waiver Date</label>
+                <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+                  <input
+                    type="date"
+                    value={form.waiver || ''}
+                    onChange={e => set('waiver', e.target.value)}
+                    style={{ flex:1 }}
+                  />
+                  {form.waiver && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => set('waiver', '')} title="Clear waiver date">
+                      Clear
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
 
               <div style={{ display:'flex', gap:'1.5rem', margin:'0.5rem 0 1rem' }}>
                 <label style={{ display:'flex', alignItems:'center', gap:'0.4rem', cursor:'pointer', textTransform:'none', fontSize:'0.9rem', fontWeight:400 }}>
