@@ -212,15 +212,15 @@ function WaiverTab() {
                 <label>Reminder Email Body</label>
                 <textarea rows={5} value={settingsForm.waiver_reminder_body}
                   onChange={e => setSettingsForm(f => ({ ...f, waiver_reminder_body: e.target.value }))}
-                  placeholder="Use {firstname}, {lastname}, {email} as placeholders" />
+                  placeholder="Use {{firstname}}, {{lastname}}, {{email}} as placeholders" />
               </div>
             </div>
             <div style={{ fontSize:'0.82rem', color:'var(--text-muted)', paddingTop:'1.5rem' }}>
               <strong>Template placeholders:</strong>
               <ul style={{ paddingLeft:'1.2rem', marginTop:'0.5rem' }}>
-                <li><code>{'{firstname}'}</code> — Member first name</li>
-                <li><code>{'{lastname}'}</code> — Member last name</li>
-                <li><code>{'{email}'}</code> — Member email</li>
+                <li><code>{'{{firstname}}'}</code> — Member first name</li>
+                <li><code>{'{{lastname}}'}</code> — Member last name</li>
+                <li><code>{'{{email}}'}</code> — Member email</li>
               </ul>
             </div>
           </div>
