@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { getHours, getUsers, getHouseholds, queryReports, getAuditLogs, getRewardTags } from '../api/client';
+import { getHours, getUsers, getHouseholds, queryReports, getAuditLogs, getRewardTags, getWaiverSettings, updateWaiverSettings, sendWaiverReminders } from '../api/client';
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => currentYear - i);
@@ -62,6 +62,217 @@ function ExportButton({ onClick }) {
       </svg>
       Export CSV
     </button>
+  );
+}
+
+// ── Waiver Status Tab ─────────────────────────────────────────
+function WaiverTab() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({ waiver_cutoff_date:'', waiver_reminder_subject:'', waiver_reminder_body:'' });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [filter, setFilter] = useState('all'); // all | current | expired | missing
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await getWaiverSettings();
+      setData(res.data);
+      setSettingsForm({
+        waiver_cutoff_date: res.data.waiver_cutoff_date || '',
+        waiver_reminder_subject: res.data.waiver_reminder_subject || '',
+        waiver_reminder_body: res.data.waiver_reminder_body || '',
+      });
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleSaveSettings = async () => {
+    if (!settingsForm.waiver_cutoff_date) { alert('Please set a cutoff date.'); return; }
+    setSettingsSaving(true);
+    try {
+      await updateWaiverSettings(settingsForm);
+      await load();
+      setShowSettings(false);
+    } catch (err) { alert(err.response?.data?.detail || 'Failed to save settings.'); }
+    finally { setSettingsSaving(false); }
+  };
+
+  const handleSendReminders = async (userIds) => {
+    if (!data?.waiver_reminder_subject || !data?.waiver_reminder_body) {
+      alert('Please configure the waiver reminder email template in Settings first.');
+      return;
+    }
+    if (!window.confirm(`Send waiver reminder to ${userIds.length} member${userIds.length !== 1 ? 's' : ''}?`)) return;
+    setSending(true);
+    try {
+      const res = await sendWaiverReminders(userIds);
+      alert(res.data.detail + (res.data.errors?.length ? `\nErrors: ${res.data.errors.join(', ')}` : ''));
+    } catch (err) { alert(err.response?.data?.detail || 'Failed to send reminders.'); }
+    finally { setSending(false); }
+  };
+
+  if (loading) return <span className="spinner" />;
+  if (!data) return <p>Failed to load waiver data.</p>;
+
+  const allMembers = [...(data.current || []), ...(data.expired || []), ...(data.missing || [])];
+  const filtered = filter === 'all' ? allMembers
+    : filter === 'current' ? data.current
+    : filter === 'expired' ? data.expired
+    : data.missing;
+
+  const expiredAndMissing = [...(data.expired || []), ...(data.missing || [])];
+
+  const statusBadge = (status) => {
+    if (status === 'current') return <span className="badge badge-approved">Current</span>;
+    if (status === 'expired') return <span className="badge badge-pending">Expired</span>;
+    return <span className="badge badge-rejected">Missing</span>;
+  };
+
+  return (
+    <>
+      {/* Summary cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
+        <div className="card" style={{ textAlign:'center', padding:'1rem' }}>
+          <div style={{ fontSize:'1.8rem', fontWeight:700, color:'var(--forest)' }}>{data.total}</div>
+          <div style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>Total Active</div>
+        </div>
+        <div className="card" style={{ textAlign:'center', padding:'1rem', cursor:'pointer' }} onClick={() => setFilter('current')}>
+          <div style={{ fontSize:'1.8rem', fontWeight:700, color:'var(--forest)' }}>{data.current?.length || 0}</div>
+          <div style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>Current</div>
+        </div>
+        <div className="card" style={{ textAlign:'center', padding:'1rem', cursor:'pointer' }} onClick={() => setFilter('expired')}>
+          <div style={{ fontSize:'1.8rem', fontWeight:700, color:'var(--earth)' }}>{data.expired?.length || 0}</div>
+          <div style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>Expired</div>
+        </div>
+        <div className="card" style={{ textAlign:'center', padding:'1rem', cursor:'pointer' }} onClick={() => setFilter('missing')}>
+          <div style={{ fontSize:'1.8rem', fontWeight:700, color:'var(--danger)' }}>{data.missing?.length || 0}</div>
+          <div style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>Missing</div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+        <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+          <select value={filter} onChange={e => setFilter(e.target.value)} style={{ width:'auto' }}>
+            <option value="all">All Members</option>
+            <option value="current">Current</option>
+            <option value="expired">Expired</option>
+            <option value="missing">Missing</option>
+          </select>
+          {data.waiver_cutoff_date && (
+            <span style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
+              Cutoff: {new Date(data.waiver_cutoff_date + 'T00:00:00').toLocaleDateString()}
+            </span>
+          )}
+        </div>
+        <div style={{ display:'flex', gap:'0.5rem' }}>
+          {expiredAndMissing.length > 0 && (
+            <button className="btn btn-primary btn-sm" disabled={sending}
+              onClick={() => handleSendReminders(expiredAndMissing.map(u => u.user_id))}>
+              {sending ? 'Sending…' : `Send Reminders (${expiredAndMissing.length})`}
+            </button>
+          )}
+          <ExportButton onClick={() => exportCSV('waiver-status', [
+            { label:'Name', value: r => `${r.firstname} ${r.lastname}` },
+            { label:'Email', value: r => r.email },
+            { label:'Household', value: r => r.household_name || '' },
+            { label:'Waiver Date', value: r => r.waiver || '' },
+            { label:'Status', value: r => r.status },
+          ], filtered)} />
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowSettings(!showSettings)}>
+            ⚙ Settings
+          </button>
+        </div>
+      </div>
+
+      {/* Settings panel */}
+      {showSettings && (
+        <div className="card" style={{ marginBottom:'1.5rem', padding:'1.25rem' }}>
+          <h4 style={{ marginBottom:'1rem' }}>Waiver Settings</h4>
+          <div className="form-group">
+            <label>Cutoff Date <span style={{ fontWeight:400, fontSize:'0.82rem', color:'var(--text-muted)' }}>(waivers before this date are considered expired)</span></label>
+            <input type="date" value={settingsForm.waiver_cutoff_date}
+              onChange={e => setSettingsForm(f => ({ ...f, waiver_cutoff_date: e.target.value }))}
+              style={{ maxWidth:220 }} />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+            <div>
+              <div className="form-group">
+                <label>Reminder Email Subject</label>
+                <input value={settingsForm.waiver_reminder_subject}
+                  onChange={e => setSettingsForm(f => ({ ...f, waiver_reminder_subject: e.target.value }))}
+                  placeholder="e.g. Volunteer Waiver Reminder" />
+              </div>
+              <div className="form-group">
+                <label>Reminder Email Body</label>
+                <textarea rows={5} value={settingsForm.waiver_reminder_body}
+                  onChange={e => setSettingsForm(f => ({ ...f, waiver_reminder_body: e.target.value }))}
+                  placeholder="Use {firstname}, {lastname}, {email} as placeholders" />
+              </div>
+            </div>
+            <div style={{ fontSize:'0.82rem', color:'var(--text-muted)', paddingTop:'1.5rem' }}>
+              <strong>Template placeholders:</strong>
+              <ul style={{ paddingLeft:'1.2rem', marginTop:'0.5rem' }}>
+                <li><code>{'{firstname}'}</code> — Member first name</li>
+                <li><code>{'{lastname}'}</code> — Member last name</li>
+                <li><code>{'{email}'}</code> — Member email</li>
+              </ul>
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end' }}>
+            <button className="btn btn-ghost" onClick={() => setShowSettings(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={settingsSaving} onClick={handleSaveSettings}>
+              {settingsSaving ? 'Saving…' : 'Save Settings'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="card">
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Household</th>
+                <th>Waiver Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.user_id}>
+                  <td><strong>{u.firstname} {u.lastname}</strong></td>
+                  <td>{u.email.includes('placeholder.invalid') ? <em style={{color:'var(--text-muted)'}}>no email</em> : u.email}</td>
+                  <td>{u.household_name || <em style={{color:'var(--text-muted)'}}>—</em>}</td>
+                  <td>{u.waiver ? new Date(u.waiver + 'T00:00:00').toLocaleDateString() : '—'}</td>
+                  <td>{statusBadge(u.status)}</td>
+                  <td>
+                    {u.status !== 'current' && !u.email.includes('placeholder.invalid') && (
+                      <button className="btn btn-secondary btn-sm" disabled={sending}
+                        onClick={() => handleSendReminders([u.user_id])}>
+                        Send Reminder
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={6} style={{ textAlign:'center', color:'var(--text-muted)', padding:'2rem' }}>No members in this category.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -315,6 +526,7 @@ export default function Reports() {
     { id:'youth',    label:'Youth Projects'        },
     { id:'members',  label:'Members & Households' },
     { id:'query',    label:'Ask a Question'        },
+    { id:'waiver',   label:'Waiver Status'         },
     { id:'activity', label:'Activity Log'          },
   ];
 
@@ -779,6 +991,8 @@ export default function Reports() {
             )}
           </>
         )}
+        {/* ── Waiver Status ───────────────────────────────────── */}
+        {tab === 'waiver' && <WaiverTab />}
         {/* ── Activity Log ────────────────────────────────────── */}
         {tab === 'activity' && (
           <>

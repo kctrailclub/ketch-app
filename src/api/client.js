@@ -208,6 +208,10 @@ export const deleteResourceDocument = (id) =>
 
 export const bulkCreateHouseholds = () => api.post('/users/bulk-households');
 
+// Waiver
+export const getWaiverSettings = () => api.get('/settings/waiver');
+export const updateWaiverSettings = (data) => api.post('/settings/waiver', data);
+export const sendWaiverReminders = (user_ids) => api.post('/settings/waiver/send', { user_ids });
 // Push notifications
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key');
 export const subscribePush = (subscription) => api.post('/push/subscribe', subscription);

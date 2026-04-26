@@ -50,7 +50,7 @@ export default function AdminUsers() {
   };
 
   const openEdit = (u) => {
-    setForm({ firstname:u.firstname, lastname:u.lastname, email:u.email, phone:u.phone, is_admin:u.is_admin, is_active:u.is_active, youth:u.youth, is_tester:u.is_tester, household_id:u.household_id || '', new_password:'', showPass:false });
+    setForm({ firstname:u.firstname, lastname:u.lastname, email:u.email, phone:u.phone, is_admin:u.is_admin, is_active:u.is_active, youth:u.youth, is_tester:u.is_tester, household_id:u.household_id || '', waiver:u.waiver || '', new_password:'', showPass:false });
     setModal(u);
     setError('');
   };
@@ -90,6 +90,7 @@ export default function AdminUsers() {
       const payload = { ...form };
       if (!payload.new_password) delete payload.new_password;
       if (payload.household_id === '') payload.household_id = null;
+      if (payload.waiver === '') payload.waiver = null;
       await updateUser(modal.user_id, payload);
       await load();
       setModal(null);
@@ -370,6 +371,7 @@ export default function AdminUsers() {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Household</th>
+                    <th>Waiver</th>
                     <th>Status</th>
                     <th>Role</th>
                     <th>Last Login</th>
@@ -382,6 +384,11 @@ export default function AdminUsers() {
                       <td><strong>{u.firstname} {u.lastname}</strong></td>
                       <td>{u.email.includes('placeholder.invalid') ? <em style={{color:'var(--text-muted)'}}>no email</em> : u.email}</td>
                       <td>{u.household_name || <em style={{color:'var(--text-muted)'}}>—</em>}</td>
+                      <td>
+                        {u.waiver
+                          ? <span style={{ color: 'var(--forest)', fontWeight: 500, fontSize: '0.85rem' }}>{new Date(u.waiver + 'T00:00:00').toLocaleDateString()}</span>
+                          : <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>Missing</span>}
+                      </td>
                       <td>
                         {!u.is_active ? <span className="badge badge-rejected">Inactive</span>
                           : u.invite_pending ? <span className="badge badge-pending">Invite Pending</span>
@@ -738,6 +745,25 @@ export default function AdminUsers() {
                     >
                       {form.showPass ? 'Hide' : 'Show'}
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {modal !== 'create' && (
+                <div className="form-group">
+                  <label>Waiver Date</label>
+                  <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+                    <input
+                      type="date"
+                      value={form.waiver || ''}
+                      onChange={e => set('waiver', e.target.value)}
+                      style={{ flex:1 }}
+                    />
+                    {form.waiver && (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => set('waiver', '')} title="Clear waiver date">
+                        Clear
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
