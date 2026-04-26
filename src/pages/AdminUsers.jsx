@@ -44,7 +44,7 @@ export default function AdminUsers() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
-    setForm({ firstname:'', lastname:'', email:'', phone:'', is_admin:false, youth:false, is_tester:false, household_option:'new', household_id:'', waiver:'' });
+    setForm({ firstname:'', lastname:'', email:'', phone:'', is_admin:false, youth:false, is_tester:false, household_option:'new', household_id:'', household_address:'', waiver:'' });
     setModal('create');
     setError('');
   };
@@ -74,6 +74,7 @@ export default function AdminUsers() {
         payload.household_id = parseInt(form.household_id);
       } else if (form.household_option === 'new') {
         payload.create_household = true;
+        if (form.household_address) payload.household_address = form.household_address;
       }
       // 'none' → no household_id, no create_household
       await createUser(payload);
@@ -669,9 +670,17 @@ export default function AdminUsers() {
                       </select>
                     )}
                     {form.household_option === 'new' && (
-                      <span style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
-                        A new household will be created using the member's last name.
-                      </span>
+                      <>
+                        <input
+                          value={form.household_address || ''}
+                          onChange={e => set('household_address', e.target.value)}
+                          placeholder="Household address (optional)"
+                          style={{ marginBottom:'0.4rem' }}
+                        />
+                        <span style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
+                          A new household will be created using the member's last name.
+                        </span>
+                      </>
                     )}
                   </div>
                 </>
