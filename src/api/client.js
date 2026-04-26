@@ -234,6 +234,11 @@ export const removeSegmentFromTrail = (trailId, segmentId) => api.delete(`/strav
 export const getTrailsChallenge = (year) => api.get('/strava/trails-challenge', { params: { year } });
 export const getTrailsChallengeLeaderboard = (year) => api.get('/strava/trails-challenge/leaderboard', { params: { year } });
 
+// Waiver
+export const getWaiverSettings = () => api.get('/settings/waiver');
+export const updateWaiverSettings = (data) => api.post('/settings/waiver', data);
+export const sendWaiverReminders = (user_ids) => api.post('/settings/waiver/send', { user_ids });
+
 // Push notifications
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key');
 export const subscribePush = (subscription) => api.post('/push/subscribe', subscription);
