@@ -310,7 +310,7 @@ export default function Rewards() {
                         {hh.tag && (
                           <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'0.2rem' }}>
                             {hh.tag.assigned_by_name ? `By ${hh.tag.assigned_by_name}` : 'Assigned'} on{' '}
-                            {new Date(hh.tag.assigned_at).toLocaleDateString()}
+                            {new Date(hh.tag.assigned_at + (hh.tag.assigned_at.endsWith?.('Z') ? '' : 'Z')).toLocaleDateString()}
                           </div>
                         )}
                       </td>
@@ -325,7 +325,7 @@ export default function Rewards() {
                         {hh.last_sent && (
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                             Sent{hh.last_sent.sent_by_name ? ` by ${hh.last_sent.sent_by_name}` : ''} on{' '}
-                            {new Date(hh.last_sent.sent_at).toLocaleDateString()}
+                            {new Date(hh.last_sent.sent_at + (hh.last_sent.sent_at.endsWith?.('Z') ? '' : 'Z')).toLocaleDateString()}
                           </div>
                         )}
                       </td>
@@ -403,7 +403,7 @@ export default function Rewards() {
                         {hh.last_sent && (
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                             Sent{hh.last_sent.sent_by_name ? ` by ${hh.last_sent.sent_by_name}` : ''} on{' '}
-                            {new Date(hh.last_sent.sent_at).toLocaleDateString()}
+                            {new Date(hh.last_sent.sent_at + (hh.last_sent.sent_at.endsWith?.('Z') ? '' : 'Z')).toLocaleDateString()}
                           </div>
                         )}
                       </td>

@@ -1060,7 +1060,7 @@ export default function Reports() {
                   <ExportButton onClick={() => exportCSV(
                     'activity-log.csv',
                     [
-                      { label:'Date',        value: r => new Date(r.created).toLocaleString() },
+                      { label:'Date',        value: r => new Date(r.created + (r.created.endsWith('Z') ? '' : 'Z')).toLocaleString() },
                       { label:'User',        value: r => r.user_name },
                       { label:'Action',      value: r => r.action },
                       { label:'Type',        value: r => r.entity_type },
@@ -1085,8 +1085,8 @@ export default function Reports() {
                         {auditLogs.map(log => (
                           <tr key={log.audit_log_id}>
                             <td style={{ whiteSpace:'nowrap', fontSize:'0.85rem' }}>
-                              {new Date(log.created).toLocaleDateString()}{' '}
-                              <span style={{ color:'var(--text-muted)' }}>{new Date(log.created).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</span>
+                              {new Date(log.created + (log.created.endsWith('Z') ? '' : 'Z')).toLocaleDateString()}{' '}
+                              <span style={{ color:'var(--text-muted)' }}>{new Date(log.created + (log.created.endsWith('Z') ? '' : 'Z')).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</span>
                             </td>
                             <td>{log.user_name}</td>
                             <td>

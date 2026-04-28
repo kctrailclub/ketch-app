@@ -217,7 +217,7 @@ export default function AdminHours() {
                           <td style={{maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                             {h.notes || '—'}
                           </td>
-                          <td>{new Date(h.submitted_on).toLocaleDateString()}</td>
+                          <td>{new Date(h.submitted_on + (h.submitted_on.endsWith?.('Z') ? '' : 'Z')).toLocaleDateString()}</td>
                           <td>
                             <div style={{ display:'flex', gap:'0.5rem' }}>
                               <button className="btn btn-secondary btn-sm" onClick={() => openEdit(h, 'pending')}>Edit</button>
