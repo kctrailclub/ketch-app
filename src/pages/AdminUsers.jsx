@@ -284,7 +284,7 @@ export default function AdminUsers() {
                       <td><strong>{r.firstname} {r.lastname}</strong></td>
                       <td>{r.email}</td>
                       <td>{r.phone || <em style={{color:'var(--text-muted)'}}>—</em>}</td>
-                      <td>{new Date(r.created).toLocaleDateString()}</td>
+                      <td>{new Date(r.created + (r.created.endsWith?.('Z') ? '' : 'Z')).toLocaleDateString()}</td>
                       <td>
                         <div style={{ display:'flex', gap:'0.4rem' }}>
                           <button className="btn btn-primary btn-sm" onClick={() => openApproveModal(r)}>Approve</button>
@@ -412,7 +412,7 @@ export default function AdminUsers() {
                           : <span className="badge badge-approved">Active</span>}
                       </td>
                       <td>{u.is_admin ? <span className="badge badge-admin">Admin</span> : 'Member'}</td>
-                      <td>{u.last_login ? new Date(u.last_login).toLocaleDateString() : <em style={{color:'var(--text-muted)'}}>Never</em>}</td>
+                      <td>{u.last_login ? new Date(u.last_login + (u.last_login.endsWith?.('Z') ? '' : 'Z')).toLocaleDateString() : <em style={{color:'var(--text-muted)'}}>Never</em>}</td>
                       <td>
                         <div style={{ display:'flex', gap:'0.4rem' }}>
                           <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
