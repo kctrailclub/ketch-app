@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { login, getMe } from '../api/client';
+import { login, setAccessToken } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
@@ -19,9 +19,7 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await login(email, password);
-      localStorage.setItem('access_token', res.data.access_token);
-      const meRes = await getMe();
-      signIn(res.data.access_token, res.data.refresh_token, meRes.data);
+      await signIn(res.data.access_token);
       navigate('/dashboard');
     } catch (err) {
       const status = err.response?.status;
@@ -32,7 +30,7 @@ export default function Login() {
       } else {
         setError('Unable to sign in. Please check your connection and try again.');
       }
-      localStorage.removeItem('access_token');
+      setAccessToken(null);
     } finally {
       setLoading(false);
     }

@@ -2,26 +2,60 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  withCredentials: true,
 });
 
-// Attach JWT token to every request
+let accessToken = null;
+let refreshing = null;
+
+export const setAccessToken = (token) => { accessToken = token; };
+export const getAccessToken = () => accessToken;
+
+export const refreshSession = async () => {
+  const res = await api.post('/auth/refresh');
+  setAccessToken(res.data.access_token);
+  return res;
+};
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
   return config;
 });
 
-// On 401, clear tokens and redirect to login — but not if we're already on the login endpoint
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    const isLoginAttempt = err.config?.url?.includes('/auth/login');
-    if (err.response?.status === 401 && !isLoginAttempt) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      window.location.href = '/login';
+  async (err) => {
+    const orig = err.config;
+    const status = err.response?.status;
+    const url = orig?.url || '';
+
+    const skipRefresh =
+      url.includes('/auth/login') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/auth/logout') ||
+      url.includes('/auth/forgot-password') ||
+      url.includes('/auth/set-password');
+
+    if (status !== 401 || skipRefresh || orig?._retried) {
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
+
+    orig._retried = true;
+    try {
+      if (!refreshing) {
+        refreshing = refreshSession().finally(() => { refreshing = null; });
+      }
+      await refreshing;
+      orig.headers.Authorization = `Bearer ${accessToken}`;
+      return api(orig);
+    } catch (refreshErr) {
+      const hadSession = accessToken !== null;
+      setAccessToken(null);
+      if (hadSession && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+      return Promise.reject(refreshErr);
+    }
   }
 );
 
@@ -43,8 +77,8 @@ export const changePassword = (current_password, new_password) =>
 export const forgotPassword = (email) =>
   api.post('/auth/forgot-password', { email });
 
-export const logout = (refresh_token) =>
-  api.post('/auth/logout', { refresh_token });
+export const logout = () =>
+  api.post('/auth/logout');
 
 // ── Users ─────────────────────────────────────────────────────
 export const getUsers = () =>
@@ -238,7 +272,6 @@ export const getTrailsChallengeLeaderboard = (year) => api.get('/strava/trails-c
 export const getWaiverSettings = () => api.get('/settings/waiver');
 export const updateWaiverSettings = (data) => api.post('/settings/waiver', data);
 export const sendWaiverReminders = (user_ids) => api.post('/settings/waiver/send', { user_ids });
-
 // Push notifications
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key');
 export const subscribePush = (subscription) => api.post('/push/subscribe', subscription);
