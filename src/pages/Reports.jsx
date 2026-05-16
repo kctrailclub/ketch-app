@@ -155,6 +155,11 @@ function WaiverTab() {
         </div>
       </div>
 
+      {/* Active-members-only note */}
+      <p style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginBottom:'1rem' }}>
+        Showing active members only.
+      </p>
+
       {/* Toolbar */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
         <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
@@ -1007,7 +1012,7 @@ export default function Reports() {
                     <option value="create">Create</option>
                     <option value="update">Update</option>
                     <option value="delete">Delete</option>
-                    <option value="approve">Approve</option>
+                    <option value="approved">Approve</option>
                     <option value="reject">Reject</option>
                     <option value="approve_all">Approve All</option>
                     <option value="login">Login</option>
