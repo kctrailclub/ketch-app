@@ -105,7 +105,7 @@ export default function BulkHours() {
             </div>
 
             {/* Date + Credit Year */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div className="form-grid-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Service Date</label>
                 <input
@@ -136,13 +136,7 @@ export default function BulkHours() {
 
             {/* Member rows */}
             <div style={{ marginBottom: '1rem' }}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 80px 1.5fr 32px',
-                gap: '0.75rem',
-                marginBottom: '0.5rem',
-                padding: '0 0.25rem',
-              }}>
+              <div className="bulk-hours-header">
                 <label style={{ margin: 0 }}>Member</label>
                 <label style={{ margin: 0 }}>Hours</label>
                 <label style={{ margin: 0 }}>Notes (optional)</label>
@@ -151,12 +145,7 @@ export default function BulkHours() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 {rows.map((row) => (
-                  <div key={row.id} style={{
-                    display: 'grid',
-                    gridTemplateColumns: '2fr 80px 1.5fr 32px',
-                    gap: '0.75rem',
-                    alignItems: 'center',
-                  }}>
+                  <div key={row.id} className="bulk-hours-row">
                     <select
                       value={row.member_id}
                       onChange={e => setRow(row.id, 'member_id', e.target.value)}
