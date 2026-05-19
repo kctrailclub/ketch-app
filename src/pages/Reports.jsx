@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { getHours, getUsers, getHouseholds, queryReports, getAuditLogs, getRewardTags, getWaiverSettings, updateWaiverSettings, sendWaiverReminders } from '../api/client';
+import ResponsiveTabs from '../components/ui/ResponsiveTabs';
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => currentYear - i);
@@ -546,19 +547,7 @@ export default function Reports() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display:'flex', gap:'0.25rem', marginBottom:'1.5rem', borderBottom:'1px solid var(--border)' }}>
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} className="btn btn-ghost" style={{
-              borderRadius:'var(--radius-sm) var(--radius-sm) 0 0',
-              borderBottom: tab === t.id ? '2px solid var(--forest)' : '2px solid transparent',
-              color: tab === t.id ? 'var(--forest)' : 'var(--text-muted)',
-              fontWeight: tab === t.id ? 600 : 400,
-              paddingBottom:'0.75rem',
-            }}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <ResponsiveTabs tabs={tabs} active={tab} onChange={setTab} />
 
         {/* ── Projects YTD ─────────────────────────────────────── */}
         {tab === 'projects' && (
