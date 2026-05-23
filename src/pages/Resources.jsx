@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   getSponsors, getResourceUpdates, getResourceDocuments,
   getStravaConnection, getStravaAuthUrl, stravaCallback, disconnectStrava,
@@ -72,7 +72,7 @@ function LeaderboardPanel({ leaderboard, totalTrails }) {
 
 // ── Strava Trails Challenge Section ──────────────────────────
 function StravaSection() {
-  const { user }                          = useContext(AuthContext);
+  const { user }                          = useAuth();
   const [connection, setConnection]       = useState(null);
   const [challenge, setChallenge]         = useState(null);
   const [leaderboard, setLeaderboard]     = useState([]);
