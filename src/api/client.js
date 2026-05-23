@@ -247,26 +247,37 @@ export const getStravaAuthUrl = () => api.get('/strava/auth-url');
 export const stravaCallback = (code) => api.post('/strava/callback', { code });
 export const getStravaConnection = () => api.get('/strava/connection');
 export const disconnectStrava = () => api.delete('/strava/connection');
-export const getStravaSegments = (includeInactive = false) =>
-  api.get('/strava/segments', { params: { include_inactive: includeInactive } });
-export const addStravaSegment = (data) => api.post('/strava/segments', data);
-export const updateStravaSegment = (id, data) => api.patch(`/strava/segments/${id}`, data);
-export const deleteStravaSegment = (id) => api.delete(`/strava/segments/${id}`);
-export const refreshStravaSegment = (id) => api.post(`/strava/segments/${id}/refresh`);
-export const syncStravaEfforts = () => api.post('/strava/sync');
-export const getSegmentLeaderboard = (segmentId) => api.get(`/strava/segments/${segmentId}/leaderboard`);
-export const getMySegmentEfforts = (segmentId) => api.get(`/strava/segments/${segmentId}/my-efforts`);
 
 // Strava Trails
-export const getStravaTrails = (year, includeInactive = false) =>
-  api.get('/strava/trails', { params: { year, include_inactive: includeInactive } });
+export const getStravaTrails = (includeInactive = false) =>
+  api.get('/strava/trails', { params: { include_inactive: includeInactive } });
 export const createStravaTrail = (data) => api.post('/strava/trails', data);
 export const updateStravaTrail = (id, data) => api.patch(`/strava/trails/${id}`, data);
 export const deleteStravaTrail = (id) => api.delete(`/strava/trails/${id}`);
-export const addSegmentToTrail = (trailId, data) => api.post(`/strava/trails/${trailId}/segments`, data);
-export const removeSegmentFromTrail = (trailId, segmentId) => api.delete(`/strava/trails/${trailId}/segments/${segmentId}`);
-export const getTrailsChallenge = (year) => api.get('/strava/trails-challenge', { params: { year } });
-export const getTrailsChallengeLeaderboard = (year) => api.get('/strava/trails-challenge/leaderboard', { params: { year } });
+
+// GPX management
+export const gpxPreview = (file) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return api.post('/strava/trails/gpx-preview', fd);
+};
+export const gpxImport = (file, selections) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('selections', JSON.stringify(selections));
+  return api.post('/strava/trails/gpx-import', fd);
+};
+export const uploadTrailGeometry = (trailId, file, trackName = null) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  if (trackName) fd.append('track_name', trackName);
+  return api.post(`/strava/trails/${trailId}/geometry`, fd);
+};
+
+// Sync & challenge
+export const syncTrailsChallenge = () => api.post('/strava/sync');
+export const getTrailsChallenge = () => api.get('/strava/trails-challenge');
+export const getTrailsChallengeLeaderboard = () => api.get('/strava/trails-challenge/leaderboard');
 
 // Waiver
 export const getWaiverSettings = () => api.get('/settings/waiver');

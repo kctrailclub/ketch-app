@@ -1,12 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getSponsors, createSponsor, updateSponsor, deleteSponsor,
   getResourceUpdates, createResourceUpdate, editResourceUpdate, deleteResourceUpdate,
   getResourceDocuments, createResourceDocument, updateResourceDocument, deleteResourceDocument,
-  getStravaSegments, addStravaSegment, updateStravaSegment, deleteStravaSegment, refreshStravaSegment,
-  getStravaConnection, getStravaAuthUrl,
   getStravaTrails, createStravaTrail, updateStravaTrail, deleteStravaTrail,
-  addSegmentToTrail, removeSegmentFromTrail,
+  gpxPreview, gpxImport, uploadTrailGeometry,
 } from '../api/client';
 
 const TABS = [
@@ -560,51 +558,42 @@ function SponsorsTab() {
   );
 }
 
-// ── Strava Tab (Trails + Segments) ────────────────────────
-const emptySegRow = () => ({ id: Date.now() + Math.random(), segment_id: '' });
-
+// ── Strava Tab (Trails + GPX) ─────────────────────────────
 function StravaTab() {
-  // --- Shared state ---
-  const [segments, setSegments]     = useState([]);
   const [trails, setTrails]         = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [connected, setConnected]   = useState(null);
 
-  // --- Trail state ---
-  const [trailModal, setTrailModal] = useState(null);
+  // Trail CRUD
+  const [trailModal, setTrailModal] = useState(null);   // null | 'add' | trail-object
   const [trailForm, setTrailForm]   = useState({});
   const [trailSaving, setTrailSaving] = useState(false);
   const [trailError, setTrailError]   = useState('');
-  const [expanded, setExpanded]       = useState(null);
 
-  // --- Add segments to trail (bulk) ---
-  const [mapTrailId, setMapTrailId] = useState(null);
-  const [mapRows, setMapRows]       = useState([emptySegRow(), emptySegRow()]);
-  const [mapSaving, setMapSaving]   = useState(false);
-  const [mapError, setMapError]     = useState('');
+  // Per-trail GPX upload
+  const [geoTrailId, setGeoTrailId]     = useState(null);
+  const [geoUploading, setGeoUploading] = useState(false);
+  const [geoMsg, setGeoMsg]             = useState('');
+  const geoFileRef                      = useRef(null);
 
-  // --- Segment management state ---
-  const [segModal, setSegModal]       = useState(null);
-  const [segForm, setSegForm]         = useState({});
-  const [segSaving, setSegSaving]     = useState(false);
-  const [segError, setSegError]       = useState('');
-  const [showSegments, setShowSegments] = useState(false);
-
-  const currentYear = new Date().getFullYear();
+  // Bulk GPX import
+  const [bulkFile, setBulkFile]         = useState(null);
+  const [bulkPreviewing, setBulkPreviewing] = useState(false);
+  const [bulkPreview, setBulkPreview]   = useState(null);   // array from /gpx-preview
+  const [bulkSel, setBulkSel]           = useState({});     // name -> { selected, sort_order }
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkMsg, setBulkMsg]           = useState('');
+  const [bulkError, setBulkError]       = useState('');
+  const bulkFileRef                     = useRef(null);
 
   const load = () => {
     setLoading(true);
-    Promise.all([
-      getStravaTrails(currentYear, true).then(r => setTrails(r.data)),
-      getStravaSegments(true).then(r => setSegments(r.data)),
-      getStravaConnection().then(r => setConnected(r.data.connected)).catch(() => setConnected(false)),
-    ]).finally(() => setLoading(false));
+    getStravaTrails(true).then(r => setTrails(r.data)).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
   // ── Trail CRUD ──
   const openAddTrail = () => {
-    setTrailForm({ name: '', distance_miles: '', elevation_feet: '', sort_order: 0, year: currentYear });
+    setTrailForm({ name: '', distance_miles: '', elevation_feet: '', sort_order: 0 });
     setTrailError('');
     setTrailModal('add');
   };
@@ -631,7 +620,6 @@ function StravaTab() {
           name: trailForm.name.trim(),
           distance_miles: trailForm.distance_miles ? parseFloat(trailForm.distance_miles) : null,
           elevation_feet: trailForm.elevation_feet ? parseInt(trailForm.elevation_feet) : null,
-          year: parseInt(trailForm.year) || currentYear,
           sort_order: parseInt(trailForm.sort_order) || 0,
         });
       } else {
@@ -653,344 +641,276 @@ function StravaTab() {
   };
 
   const handleDeleteTrail = async (t) => {
-    if (!window.confirm(`Delete trail "${t.name}"? This will also remove all segment mappings.`)) return;
-    try {
-      await deleteStravaTrail(t.trail_id);
-      load();
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete');
-    }
-  };
-
-  const handleRemoveSegment = async (trailId, segmentId) => {
-    if (!window.confirm('Remove this segment from the trail?')) return;
-    try {
-      await removeSegmentFromTrail(trailId, segmentId);
-      load();
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to remove');
-    }
+    if (!window.confirm(`Delete trail "${t.name}"? All completion records will also be removed.`)) return;
+    try { await deleteStravaTrail(t.trail_id); load(); }
+    catch (err) { alert(err.response?.data?.detail || 'Failed to delete'); }
   };
 
   const setTF = (k, v) => setTrailForm(f => ({ ...f, [k]: v }));
 
-  // ── Bulk add segments to trail ──
-  const openMapSegments = (trail) => {
-    setMapTrailId(trail.trail_id);
-    setMapRows([emptySegRow(), emptySegRow()]);
-    setMapError('');
-  };
-
-  const setMapRow = (id, value) => {
-    setMapRows(rs => rs.map(r => r.id === id ? { ...r, segment_id: value } : r));
-  };
-
-  const addMapRow = () => setMapRows(rs => [...rs, emptySegRow()]);
-
-  const removeMapRow = (id) => {
-    if (mapRows.length <= 1) return;
-    setMapRows(rs => rs.filter(r => r.id !== id));
-  };
-
-  const handleBulkAddSegments = async () => {
-    setMapError('');
-    const filled = mapRows.filter(r => r.segment_id);
-    if (filled.length === 0) { setMapError('Select at least one segment'); return; }
-
-    // Check for duplicates in the selection
-    const ids = filled.map(r => r.segment_id);
-    if (new Set(ids).size !== ids.length) { setMapError('A segment is selected more than once'); return; }
-
-    // Find the trail to get its current segment count for auto-ordering
-    const trail = trails.find(t => t.trail_id === mapTrailId);
-    const startOrder = trail ? trail.segment_count : 0;
-
-    setMapSaving(true);
+  // ── Per-trail GPX upload ──
+  const handleGeoUpload = async (trailId, file) => {
+    if (!file) return;
+    setGeoTrailId(trailId);
+    setGeoUploading(true);
+    setGeoMsg('');
     try {
-      for (let i = 0; i < filled.length; i++) {
-        await addSegmentToTrail(mapTrailId, {
-          segment_id: parseInt(filled[i].segment_id),
-          segment_order: startOrder + i,
-        });
-      }
-      setMapTrailId(null);
+      const res = await uploadTrailGeometry(trailId, file);
+      setGeoMsg(res.data.detail || 'Geometry uploaded');
       load();
     } catch (err) {
-      setMapError(err.response?.data?.detail || 'Failed to add one or more segments');
+      setGeoMsg(err.response?.data?.detail || 'Upload failed');
     } finally {
-      setMapSaving(false);
+      setGeoUploading(false);
+      if (geoFileRef.current) geoFileRef.current.value = '';
     }
   };
 
-  // Get already-mapped segment IDs for this trail to filter them out
-  const trailForMap = trails.find(t => t.trail_id === mapTrailId);
-  const mappedSegIds = new Set(trailForMap?.segments?.map(s => String(s.segment_id)) || []);
-  const availableSegments = segments.filter(s => s.is_active && !mappedSegIds.has(String(s.segment_id)));
-
-  // ── Segment CRUD ──
-  const openAddSegment = () => {
-    setSegForm({ strava_segment_id: '' });
-    setSegError('');
-    setSegModal('add');
-  };
-
-  const openEditSegment = (s) => {
-    setSegForm({ name: s.name, is_active: s.is_active });
-    setSegError('');
-    setSegModal(s);
-  };
-
-  const handleSaveSegment = async () => {
-    setSegError('');
-    setSegSaving(true);
+  // ── Bulk GPX import ──
+  const handleBulkPreview = async () => {
+    if (!bulkFile) return;
+    setBulkError('');
+    setBulkMsg('');
+    setBulkPreviewing(true);
     try {
-      if (segModal === 'add') {
-        const segId = parseInt(segForm.strava_segment_id);
-        if (!segId || segId <= 0) { setSegError('Enter a valid Strava Segment ID'); setSegSaving(false); return; }
-        await addStravaSegment({ strava_segment_id: segId, sort_order: 0 });
-      } else {
-        await updateStravaSegment(segModal.segment_id, {
-          name: segForm.name,
-          is_active: segForm.is_active,
-        });
-      }
-      setSegModal(null);
-      load();
+      const res = await gpxPreview(bulkFile);
+      const items = res.data.trails || [];
+      setBulkPreview(items);
+      // Default: select all, preserve sort order from array position
+      const sel = {};
+      items.forEach((t, i) => {
+        sel[t.name] = { selected: true, sort_order: i };
+      });
+      setBulkSel(sel);
     } catch (err) {
-      setSegError(err.response?.data?.detail || 'Failed to save');
+      setBulkError(err.response?.data?.detail || 'Failed to parse GPX');
     } finally {
-      setSegSaving(false);
+      setBulkPreviewing(false);
     }
   };
 
-  const handleDeleteSegment = async (s) => {
-    if (!window.confirm(`Delete segment "${s.name}"? All associated member efforts will also be removed.`)) return;
-    try { await deleteStravaSegment(s.segment_id); load(); }
-    catch (err) { alert(err.response?.data?.detail || 'Failed to delete'); }
-  };
-
-  const handleRefreshSegment = async (s) => {
-    try { await refreshStravaSegment(s.segment_id); load(); }
-    catch (err) { alert(err.response?.data?.detail || 'Failed to refresh'); }
-  };
-
-  const setSF = (k, v) => setSegForm(f => ({ ...f, [k]: v }));
-
-  const formatDistance = (meters) => {
-    if (!meters) return '—';
-    return `${(meters / 1609.34).toFixed(2)} mi`;
+  const handleBulkImport = async () => {
+    if (!bulkFile || !bulkPreview) return;
+    setBulkError('');
+    setBulkImporting(true);
+    try {
+      const selections = bulkPreview
+        .filter(t => bulkSel[t.name]?.selected)
+        .map(t => ({
+          name: t.name,
+          distance_miles: t.distance_miles,
+          sort_order: bulkSel[t.name]?.sort_order ?? 0,
+        }));
+      if (selections.length === 0) { setBulkError('Select at least one trail to import'); setBulkImporting(false); return; }
+      const res = await gpxImport(bulkFile, selections);
+      setBulkMsg(res.data.detail || 'Import complete');
+      setBulkPreview(null);
+      setBulkFile(null);
+      if (bulkFileRef.current) bulkFileRef.current.value = '';
+      load();
+    } catch (err) {
+      setBulkError(err.response?.data?.detail || 'Import failed');
+    } finally {
+      setBulkImporting(false);
+    }
   };
 
   if (loading) return <span className="spinner" />;
 
   return (
     <>
-      {/* Strava connection banner */}
-      {connected === false && (
-        <div className="alert alert-error" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <span>Connect your Strava account to add and manage segments.</span>
-          <button
-            className="btn btn-primary btn-sm"
-            style={{ background: '#FC4C02', borderColor: '#FC4C02' }}
-            onClick={async () => {
-              try { const res = await getStravaAuthUrl(); window.location.href = res.data.url; }
-              catch { alert('Strava integration is not available'); }
-            }}
-          >
-            Connect with Strava
-          </button>
-        </div>
-      )}
+      {/* ── Bulk GPX Import ── */}
+      <div style={{ marginBottom: '2rem', padding: '1rem', background: 'var(--fern)', borderRadius: 'var(--radius-md)' }}>
+        <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: 'var(--forest)' }}>Bulk GPX Import</h3>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+          Upload the master trails GPX file to seed or update trail geometry in bulk.
+        </p>
 
-      {/* ── Trails Section ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--forest)' }}>Trails</h3>
-        <button className="btn btn-primary btn-sm" onClick={openAddTrail}>+ Add Trail</button>
-      </div>
-
-      {trails.length === 0 ? (
-        <div className="empty-state" style={{ marginBottom: '2rem' }}><p>No trails yet</p></div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
-          {trails.map(t => (
-            <div key={t.trail_id} style={{
-              border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
-              overflow: 'hidden', opacity: t.is_active ? 1 : 0.5,
-            }}>
-              {/* Trail header */}
-              <div style={{
-                padding: '0.75rem 1rem', display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', background: 'var(--fern)',
-              }}>
-                <div
-                  style={{ flex: 1, cursor: 'pointer' }}
-                  onClick={() => setExpanded(expanded === t.trail_id ? null : t.trail_id)}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <strong>{t.name}</strong>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      ({t.segment_count} segment{t.segment_count !== 1 ? 's' : ''})
-                    </span>
-                    {!t.is_active && (
-                      <span className="badge badge-rejected" style={{ fontSize: '0.65rem' }}>Inactive</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '1rem' }}>
-                    {t.distance_miles && <span>{t.distance_miles} mi</span>}
-                    {t.elevation_feet && <span>{t.elevation_feet.toLocaleString()} ft</span>}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <button className="btn btn-secondary btn-sm" onClick={() => openEditTrail(t)}>Edit</button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => openMapSegments(t)}>+ Segments</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTrail(t)}>Delete</button>
-                </div>
-              </div>
-
-              {/* Segments list (expandable) */}
-              {expanded === t.trail_id && (
-                <div style={{ padding: '0.5rem 1rem' }}>
-                  {t.segments.length === 0 ? (
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
-                      No segments mapped yet. Click "+ Segments" to add.
-                    </p>
-                  ) : (
-                    <table style={{ fontSize: '0.85rem', width: '100%' }}>
-                      <thead>
-                        <tr>
-                          <th>Segment</th>
-                          <th>Type</th>
-                          <th style={{ width: 80 }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {t.segments.map(s => (
-                          <tr key={s.segment_id}>
-                            <td>
-                              <div>{s.name}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                Strava ID: {s.strava_segment_id}
-                              </div>
-                            </td>
-                            <td>
-                              <span style={{
-                                fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase',
-                                padding: '0.1rem 0.4rem', borderRadius: 999,
-                                background: s.activity_type === 'Run' ? '#DBEAFE' : '#F3F4F6',
-                                color: s.activity_type === 'Run' ? '#1E40AF' : '#374151',
-                              }}>
-                                {s.activity_type}
-                              </span>
-                            </td>
-                            <td>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={() => handleRemoveSegment(t.trail_id, s.segment_id)}
-                              >
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Segments Inventory (collapsible) ── */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
-        <div
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showSegments ? '1rem' : 0, cursor: 'pointer' }}
-          onClick={() => setShowSegments(s => !s)}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--forest)' }}>Segment Library</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>({segments.length} segments)</span>
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"
-              style={{ transform: showSegments ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+        {bulkMsg && (
+          <div className="alert" style={{ background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0', marginBottom: '0.75rem' }}>
+            {bulkMsg}
           </div>
+        )}
+        {bulkError && <div className="alert alert-error" style={{ marginBottom: '0.75rem' }}>{bulkError}</div>}
+
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+          <input
+            type="file"
+            accept=".gpx"
+            ref={bulkFileRef}
+            onChange={e => { setBulkFile(e.target.files[0] || null); setBulkPreview(null); setBulkMsg(''); setBulkError(''); }}
+            style={{ fontSize: '0.85rem' }}
+          />
           <button
-            className="btn btn-primary btn-sm"
-            onClick={e => { e.stopPropagation(); openAddSegment(); }}
-            disabled={!connected}
+            className="btn btn-secondary btn-sm"
+            onClick={handleBulkPreview}
+            disabled={!bulkFile || bulkPreviewing}
           >
-            + Add Segment
+            {bulkPreviewing ? 'Parsing…' : 'Preview'}
           </button>
         </div>
 
-        {showSegments && (
+        {bulkPreview && (
           <>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
-              Add trail segments by their Strava Segment ID. Find IDs on{' '}
-              <a href="https://www.strava.com/segments/explore" target="_blank" rel="noopener noreferrer" style={{ color: '#FC4C02' }}>
-                Strava Segment Explorer
-              </a>.
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+              {bulkPreview.length} tracks found — select trails to import:
             </p>
-
-            {segments.length === 0 ? (
-              <div className="empty-state"><p>No segments yet</p></div>
-            ) : (
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Distance</th>
-                      <th>Status</th>
-                      <th style={{ width: 180 }}>Actions</th>
+            <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--white)', marginBottom: '0.75rem' }}>
+              <table style={{ fontSize: '0.82rem', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 36 }}>
+                      <input
+                        type="checkbox"
+                        style={{ width: 'auto' }}
+                        checked={bulkPreview.every(t => bulkSel[t.name]?.selected)}
+                        onChange={e => {
+                          const next = {};
+                          bulkPreview.forEach((t, i) => { next[t.name] = { ...bulkSel[t.name], selected: e.target.checked, sort_order: bulkSel[t.name]?.sort_order ?? i }; });
+                          setBulkSel(next);
+                        }}
+                      />
+                    </th>
+                    <th>Name</th>
+                    <th>Distance</th>
+                    <th>Points</th>
+                    <th style={{ width: 80 }}>Sort #</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkPreview.map((t, i) => (
+                    <tr key={t.name} style={{ opacity: bulkSel[t.name]?.selected ? 1 : 0.4 }}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          style={{ width: 'auto' }}
+                          checked={!!bulkSel[t.name]?.selected}
+                          onChange={e => setBulkSel(s => ({ ...s, [t.name]: { ...s[t.name], selected: e.target.checked, sort_order: s[t.name]?.sort_order ?? i } }))}
+                        />
+                      </td>
+                      <td>{t.name}</td>
+                      <td>{t.distance_miles != null ? `${t.distance_miles} mi` : '—'}</td>
+                      <td>{t.point_count.toLocaleString()}</td>
+                      <td>
+                        <input
+                          type="number"
+                          value={bulkSel[t.name]?.sort_order ?? i}
+                          onChange={e => setBulkSel(s => ({ ...s, [t.name]: { ...s[t.name], sort_order: parseInt(e.target.value) || 0 } }))}
+                          style={{ width: 60, padding: '0.15rem 0.3rem', fontSize: '0.82rem' }}
+                        />
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {segments.map(s => (
-                      <tr key={s.segment_id} style={{ opacity: s.is_active ? 1 : 0.5 }}>
-                        <td>
-                          <div>
-                            <strong>{s.name}</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {s.strava_segment_id}</div>
-                          </div>
-                        </td>
-                        <td>
-                          <span style={{
-                            fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase',
-                            padding: '0.15rem 0.5rem', borderRadius: 999,
-                            background: s.activity_type === 'Run' ? '#DBEAFE' : '#F3F4F6',
-                            color: s.activity_type === 'Run' ? '#1E40AF' : '#374151',
-                          }}>
-                            {s.activity_type}
-                          </span>
-                        </td>
-                        <td>{formatDistance(s.distance)}</td>
-                        <td>
-                          <span className={`badge ${s.is_active ? 'badge-approved' : 'badge-rejected'}`}>
-                            {s.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => openEditSegment(s)}>Edit</button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleRefreshSegment(s)} title="Re-fetch from Strava">Refresh</button>
-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteSegment(s)}>Delete</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleBulkImport}
+                disabled={bulkImporting}
+                style={{ background: '#FC4C02', borderColor: '#FC4C02' }}
+              >
+                {bulkImporting ? 'Importing…' : `Import ${Object.values(bulkSel).filter(s => s.selected).length} trail(s)`}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setBulkPreview(null); setBulkFile(null); if (bulkFileRef.current) bulkFileRef.current.value = ''; }}>
+                Cancel
+              </button>
+            </div>
           </>
         )}
       </div>
+
+      {/* ── Trails Table ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--forest)' }}>
+          Trails <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.85rem' }}>({trails.length})</span>
+        </h3>
+        <button className="btn btn-primary btn-sm" onClick={openAddTrail}>+ Add Trail</button>
+      </div>
+
+      {/* Per-trail geo upload message */}
+      {geoMsg && (
+        <div style={{
+          fontSize: '0.85rem', marginBottom: '1rem', padding: '0.5rem 0.75rem',
+          borderRadius: 'var(--radius-sm)', background: 'var(--fern)',
+          color: 'var(--text-muted)',
+        }}>
+          {geoMsg}
+        </div>
+      )}
+
+      {trails.length === 0 ? (
+        <div className="empty-state"><p>No trails yet. Use GPX Import or Add Trail.</p></div>
+      ) : (
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Distance</th>
+                <th>Elevation</th>
+                <th>Geometry</th>
+                <th>Sort</th>
+                <th>Status</th>
+                <th style={{ width: 220 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trails.map(t => (
+                <tr key={t.trail_id} style={{ opacity: t.is_active ? 1 : 0.5 }}>
+                  <td><strong>{t.name}</strong></td>
+                  <td>{t.distance_miles ? `${t.distance_miles} mi` : '—'}</td>
+                  <td>{t.elevation_feet ? `${t.elevation_feet.toLocaleString()} ft` : '—'}</td>
+                  <td>
+                    {t.has_geometry ? (
+                      <span style={{
+                        fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem',
+                        borderRadius: 999, background: '#DCFCE7', color: '#16A34A',
+                      }}>
+                        ✓ Loaded
+                      </span>
+                    ) : (
+                      <span style={{
+                        fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem',
+                        borderRadius: 999, background: '#FEF3C7', color: '#92400E',
+                      }}>
+                        No geometry
+                      </span>
+                    )}
+                  </td>
+                  <td>{t.sort_order}</td>
+                  <td>
+                    <span className={`badge ${t.is_active ? 'badge-approved' : 'badge-rejected'}`}>
+                      {t.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => openEditTrail(t)}>Edit</button>
+                      <label
+                        className="btn btn-secondary btn-sm"
+                        style={{ cursor: 'pointer', margin: 0 }}
+                        title="Upload GPX for this trail"
+                      >
+                        {geoUploading && geoTrailId === t.trail_id ? 'Uploading…' : 'GPX'}
+                        <input
+                          type="file"
+                          accept=".gpx"
+                          ref={geoTrailId === t.trail_id ? geoFileRef : null}
+                          style={{ display: 'none' }}
+                          onChange={e => handleGeoUpload(t.trail_id, e.target.files[0])}
+                        />
+                      </label>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTrail(t)}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ── Trail Add/Edit Modal ── */}
       {trailModal && (
@@ -1003,19 +923,17 @@ function StravaTab() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label>Distance (miles)</label>
-              <input type="number" step="0.01" value={trailForm.distance_miles} onChange={e => setTF('distance_miles', e.target.value)} />
+              <input type="number" step="0.001" value={trailForm.distance_miles} onChange={e => setTF('distance_miles', e.target.value)} />
             </div>
             <div className="form-group">
               <label>Elevation (feet)</label>
               <input type="number" value={trailForm.elevation_feet} onChange={e => setTF('elevation_feet', e.target.value)} />
             </div>
           </div>
-          {trailModal === 'add' && (
-            <div className="form-group">
-              <label>Year</label>
-              <input type="number" value={trailForm.year} onChange={e => setTF('year', e.target.value)} />
-            </div>
-          )}
+          <div className="form-group">
+            <label>Sort Order</label>
+            <input type="number" value={trailForm.sort_order} onChange={e => setTF('sort_order', e.target.value)} />
+          </div>
           {trailModal !== 'add' && (
             <div className="form-group">
               <label>
@@ -1033,114 +951,6 @@ function StravaTab() {
             <button className="btn btn-ghost" onClick={() => setTrailModal(null)}>Cancel</button>
             <button className="btn btn-primary" onClick={handleSaveTrail} disabled={trailSaving || !trailForm.name?.trim()}>
               {trailSaving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── Bulk Add Segments to Trail Modal ── */}
-      {mapTrailId && (
-        <Modal title={`Add Segments to ${trailForMap?.name || 'Trail'}`} onClose={() => setMapTrailId(null)}>
-          {mapError && <div className="alert alert-error">{mapError}</div>}
-
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Segments</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {mapRows.map(row => (
-                <div key={row.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <select
-                    value={row.segment_id}
-                    onChange={e => setMapRow(row.id, e.target.value)}
-                    style={{ flex: 1 }}
-                  >
-                    <option value="">Select segment...</option>
-                    {availableSegments.map(s => (
-                      <option key={s.segment_id} value={s.segment_id}>
-                        {s.name} ({s.activity_type})
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => removeMapRow(row.id)}
-                    title="Remove row"
-                    style={{ padding: '0.25rem', color: 'var(--text-muted)', minWidth: 0 }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <button type="button" className="btn btn-secondary btn-sm" onClick={addMapRow} style={{ marginBottom: '1rem' }}>
-            + Add Row
-          </button>
-
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            {mapRows.filter(r => r.segment_id).length} segment{mapRows.filter(r => r.segment_id).length !== 1 ? 's' : ''} selected
-            — order will be assigned automatically
-          </div>
-
-          <div className="modal-footer">
-            <button className="btn btn-ghost" onClick={() => setMapTrailId(null)}>Cancel</button>
-            <button
-              className="btn btn-primary"
-              onClick={handleBulkAddSegments}
-              disabled={mapSaving || mapRows.every(r => !r.segment_id)}
-            >
-              {mapSaving ? 'Adding...' : 'Add Segments'}
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── Segment Add/Edit Modal ── */}
-      {segModal && (
-        <Modal title={segModal === 'add' ? 'Add Segment from Strava' : 'Edit Segment'} onClose={() => setSegModal(null)}>
-          {segError && <div className="alert alert-error">{segError}</div>}
-          {segModal === 'add' ? (
-            <div className="form-group">
-              <label>Strava Segment ID</label>
-              <input
-                type="number"
-                value={segForm.strava_segment_id}
-                onChange={e => setSF('strava_segment_id', e.target.value)}
-                placeholder="e.g. 12345678"
-                required
-              />
-              <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                Find this in the Strava segment URL: strava.com/segments/<strong>[ID]</strong>
-              </small>
-            </div>
-          ) : (
-            <>
-              <div className="form-group">
-                <label>Name</label>
-                <input value={segForm.name} onChange={e => setSF('name', e.target.value)} required />
-              </div>
-              <div className="form-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={!!segForm.is_active}
-                    onChange={e => setSF('is_active', e.target.checked ? 1 : 0)}
-                    style={{ width: 'auto', marginRight: '0.5rem' }}
-                  />
-                  Active
-                </label>
-              </div>
-            </>
-          )}
-          <div className="modal-footer">
-            <button className="btn btn-ghost" onClick={() => setSegModal(null)}>Cancel</button>
-            <button
-              className="btn btn-primary"
-              onClick={handleSaveSegment}
-              disabled={segSaving || (segModal === 'add' && !segForm.strava_segment_id)}
-            >
-              {segSaving ? (segModal === 'add' ? 'Fetching from Strava...' : 'Saving...') : 'Save'}
             </button>
           </div>
         </Modal>
