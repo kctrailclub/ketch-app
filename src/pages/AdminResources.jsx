@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getSponsors, createSponsor, updateSponsor, deleteSponsor,
   getResourceUpdates, createResourceUpdate, editResourceUpdate, deleteResourceUpdate,
   getResourceDocuments, createResourceDocument, updateResourceDocument, deleteResourceDocument,
+  getStravaTrails, createStravaTrail, updateStravaTrail, deleteStravaTrail,
+  gpxPreview, gpxImport, uploadTrailGeometry,
 } from '../api/client';
 
 const TABS = [
   { id: 'updates',   label: 'Updates' },
   { id: 'documents', label: 'Documents' },
   { id: 'sponsors',  label: 'Sponsors' },
+  { id: 'strava',    label: 'Strava' },
 ];
 
 const TYPE_OPTIONS = [
@@ -555,6 +558,407 @@ function SponsorsTab() {
   );
 }
 
+// ── Strava Tab (Trails + GPX) ─────────────────────────────
+function StravaTab() {
+  const [trails, setTrails]         = useState([]);
+  const [loading, setLoading]       = useState(true);
+
+  // Trail CRUD
+  const [trailModal, setTrailModal] = useState(null);   // null | 'add' | trail-object
+  const [trailForm, setTrailForm]   = useState({});
+  const [trailSaving, setTrailSaving] = useState(false);
+  const [trailError, setTrailError]   = useState('');
+
+  // Per-trail GPX upload
+  const [geoTrailId, setGeoTrailId]     = useState(null);
+  const [geoUploading, setGeoUploading] = useState(false);
+  const [geoMsg, setGeoMsg]             = useState('');
+  const geoFileRef                      = useRef(null);
+
+  // Bulk GPX import
+  const [bulkFile, setBulkFile]         = useState(null);
+  const [bulkPreviewing, setBulkPreviewing] = useState(false);
+  const [bulkPreview, setBulkPreview]   = useState(null);   // array from /gpx-preview
+  const [bulkSel, setBulkSel]           = useState({});     // name -> { selected, sort_order }
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkMsg, setBulkMsg]           = useState('');
+  const [bulkError, setBulkError]       = useState('');
+  const bulkFileRef                     = useRef(null);
+
+  const load = () => {
+    setLoading(true);
+    getStravaTrails(true).then(r => setTrails(r.data)).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  // ── Trail CRUD ──
+  const openAddTrail = () => {
+    setTrailForm({ name: '', distance_miles: '', elevation_feet: '', sort_order: 0 });
+    setTrailError('');
+    setTrailModal('add');
+  };
+
+  const openEditTrail = (t) => {
+    setTrailForm({
+      name: t.name,
+      distance_miles: t.distance_miles || '',
+      elevation_feet: t.elevation_feet || '',
+      sort_order: t.sort_order,
+      is_active: t.is_active,
+    });
+    setTrailError('');
+    setTrailModal(t);
+  };
+
+  const handleSaveTrail = async () => {
+    setTrailError('');
+    if (!trailForm.name?.trim()) { setTrailError('Name is required'); return; }
+    setTrailSaving(true);
+    try {
+      if (trailModal === 'add') {
+        await createStravaTrail({
+          name: trailForm.name.trim(),
+          distance_miles: trailForm.distance_miles ? parseFloat(trailForm.distance_miles) : null,
+          elevation_feet: trailForm.elevation_feet ? parseInt(trailForm.elevation_feet) : null,
+          sort_order: parseInt(trailForm.sort_order) || 0,
+        });
+      } else {
+        await updateStravaTrail(trailModal.trail_id, {
+          name: trailForm.name.trim(),
+          distance_miles: trailForm.distance_miles ? parseFloat(trailForm.distance_miles) : null,
+          elevation_feet: trailForm.elevation_feet ? parseInt(trailForm.elevation_feet) : null,
+          sort_order: parseInt(trailForm.sort_order) || 0,
+          is_active: trailForm.is_active,
+        });
+      }
+      setTrailModal(null);
+      load();
+    } catch (err) {
+      setTrailError(err.response?.data?.detail || 'Failed to save');
+    } finally {
+      setTrailSaving(false);
+    }
+  };
+
+  const handleDeleteTrail = async (t) => {
+    if (!window.confirm(`Delete trail "${t.name}"? All completion records will also be removed.`)) return;
+    try { await deleteStravaTrail(t.trail_id); load(); }
+    catch (err) { alert(err.response?.data?.detail || 'Failed to delete'); }
+  };
+
+  const setTF = (k, v) => setTrailForm(f => ({ ...f, [k]: v }));
+
+  // ── Per-trail GPX upload ──
+  const handleGeoUpload = async (trailId, file) => {
+    if (!file) return;
+    setGeoTrailId(trailId);
+    setGeoUploading(true);
+    setGeoMsg('');
+    try {
+      const res = await uploadTrailGeometry(trailId, file);
+      setGeoMsg(res.data.detail || 'Geometry uploaded');
+      load();
+    } catch (err) {
+      setGeoMsg(err.response?.data?.detail || 'Upload failed');
+    } finally {
+      setGeoUploading(false);
+      if (geoFileRef.current) geoFileRef.current.value = '';
+    }
+  };
+
+  // ── Bulk GPX import ──
+  const handleBulkPreview = async () => {
+    if (!bulkFile) return;
+    setBulkError('');
+    setBulkMsg('');
+    setBulkPreviewing(true);
+    try {
+      const res = await gpxPreview(bulkFile);
+      const items = res.data.trails || [];
+      setBulkPreview(items);
+      // Default: select all, preserve sort order from array position
+      const sel = {};
+      items.forEach((t, i) => {
+        sel[t.name] = { selected: true, sort_order: i };
+      });
+      setBulkSel(sel);
+    } catch (err) {
+      setBulkError(err.response?.data?.detail || 'Failed to parse GPX');
+    } finally {
+      setBulkPreviewing(false);
+    }
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkFile || !bulkPreview) return;
+    setBulkError('');
+    setBulkImporting(true);
+    try {
+      const selections = bulkPreview
+        .filter(t => bulkSel[t.name]?.selected)
+        .map(t => ({
+          name: t.name,
+          distance_miles: t.distance_miles,
+          sort_order: bulkSel[t.name]?.sort_order ?? 0,
+        }));
+      if (selections.length === 0) { setBulkError('Select at least one trail to import'); setBulkImporting(false); return; }
+      const res = await gpxImport(bulkFile, selections);
+      setBulkMsg(res.data.detail || 'Import complete');
+      setBulkPreview(null);
+      setBulkFile(null);
+      if (bulkFileRef.current) bulkFileRef.current.value = '';
+      load();
+    } catch (err) {
+      setBulkError(err.response?.data?.detail || 'Import failed');
+    } finally {
+      setBulkImporting(false);
+    }
+  };
+
+  if (loading) return <span className="spinner" />;
+
+  return (
+    <>
+      {/* ── Bulk GPX Import ── */}
+      <div style={{ marginBottom: '2rem', padding: '1rem', background: 'var(--fern)', borderRadius: 'var(--radius-md)' }}>
+        <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: 'var(--forest)' }}>Bulk GPX Import</h3>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+          Upload the master trails GPX file to seed or update trail geometry in bulk.
+        </p>
+
+        {bulkMsg && (
+          <div className="alert" style={{ background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0', marginBottom: '0.75rem' }}>
+            {bulkMsg}
+          </div>
+        )}
+        {bulkError && <div className="alert alert-error" style={{ marginBottom: '0.75rem' }}>{bulkError}</div>}
+
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+          <input
+            type="file"
+            accept=".gpx"
+            ref={bulkFileRef}
+            onChange={e => { setBulkFile(e.target.files[0] || null); setBulkPreview(null); setBulkMsg(''); setBulkError(''); }}
+            style={{ fontSize: '0.85rem' }}
+          />
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleBulkPreview}
+            disabled={!bulkFile || bulkPreviewing}
+          >
+            {bulkPreviewing ? 'Parsing…' : 'Preview'}
+          </button>
+        </div>
+
+        {bulkPreview && (
+          <>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+              {bulkPreview.length} tracks found — select trails to import:
+            </p>
+            <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--white)', marginBottom: '0.75rem' }}>
+              <table style={{ fontSize: '0.82rem', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 36 }}>
+                      <input
+                        type="checkbox"
+                        style={{ width: 'auto' }}
+                        checked={bulkPreview.every(t => bulkSel[t.name]?.selected)}
+                        onChange={e => {
+                          const next = {};
+                          bulkPreview.forEach((t, i) => { next[t.name] = { ...bulkSel[t.name], selected: e.target.checked, sort_order: bulkSel[t.name]?.sort_order ?? i }; });
+                          setBulkSel(next);
+                        }}
+                      />
+                    </th>
+                    <th>Name</th>
+                    <th>Distance</th>
+                    <th>Points</th>
+                    <th style={{ width: 80 }}>Sort #</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkPreview.map((t, i) => (
+                    <tr key={t.name} style={{ opacity: bulkSel[t.name]?.selected ? 1 : 0.4 }}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          style={{ width: 'auto' }}
+                          checked={!!bulkSel[t.name]?.selected}
+                          onChange={e => setBulkSel(s => ({ ...s, [t.name]: { ...s[t.name], selected: e.target.checked, sort_order: s[t.name]?.sort_order ?? i } }))}
+                        />
+                      </td>
+                      <td>{t.name}</td>
+                      <td>{t.distance_miles != null ? `${t.distance_miles} mi` : '—'}</td>
+                      <td>{t.point_count.toLocaleString()}</td>
+                      <td>
+                        <input
+                          type="number"
+                          value={bulkSel[t.name]?.sort_order ?? i}
+                          onChange={e => setBulkSel(s => ({ ...s, [t.name]: { ...s[t.name], sort_order: parseInt(e.target.value) || 0 } }))}
+                          style={{ width: 60, padding: '0.15rem 0.3rem', fontSize: '0.82rem' }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleBulkImport}
+                disabled={bulkImporting}
+                style={{ background: '#FC4C02', borderColor: '#FC4C02' }}
+              >
+                {bulkImporting ? 'Importing…' : `Import ${Object.values(bulkSel).filter(s => s.selected).length} trail(s)`}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setBulkPreview(null); setBulkFile(null); if (bulkFileRef.current) bulkFileRef.current.value = ''; }}>
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Trails Table ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--forest)' }}>
+          Trails <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.85rem' }}>({trails.length})</span>
+        </h3>
+        <button className="btn btn-primary btn-sm" onClick={openAddTrail}>+ Add Trail</button>
+      </div>
+
+      {/* Per-trail geo upload message */}
+      {geoMsg && (
+        <div style={{
+          fontSize: '0.85rem', marginBottom: '1rem', padding: '0.5rem 0.75rem',
+          borderRadius: 'var(--radius-sm)', background: 'var(--fern)',
+          color: 'var(--text-muted)',
+        }}>
+          {geoMsg}
+        </div>
+      )}
+
+      {trails.length === 0 ? (
+        <div className="empty-state"><p>No trails yet. Use GPX Import or Add Trail.</p></div>
+      ) : (
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Distance</th>
+                <th>Elevation</th>
+                <th>Geometry</th>
+                <th>Sort</th>
+                <th>Status</th>
+                <th style={{ width: 220 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trails.map(t => (
+                <tr key={t.trail_id} style={{ opacity: t.is_active ? 1 : 0.5 }}>
+                  <td><strong>{t.name}</strong></td>
+                  <td>{t.distance_miles ? `${t.distance_miles} mi` : '—'}</td>
+                  <td>{t.elevation_feet ? `${t.elevation_feet.toLocaleString()} ft` : '—'}</td>
+                  <td>
+                    {t.has_geometry ? (
+                      <span style={{
+                        fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem',
+                        borderRadius: 999, background: '#DCFCE7', color: '#16A34A',
+                      }}>
+                        ✓ Loaded
+                      </span>
+                    ) : (
+                      <span style={{
+                        fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem',
+                        borderRadius: 999, background: '#FEF3C7', color: '#92400E',
+                      }}>
+                        No geometry
+                      </span>
+                    )}
+                  </td>
+                  <td>{t.sort_order}</td>
+                  <td>
+                    <span className={`badge ${t.is_active ? 'badge-approved' : 'badge-rejected'}`}>
+                      {t.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => openEditTrail(t)}>Edit</button>
+                      <label
+                        className="btn btn-secondary btn-sm"
+                        style={{ cursor: 'pointer', margin: 0 }}
+                        title="Upload GPX for this trail"
+                      >
+                        {geoUploading && geoTrailId === t.trail_id ? 'Uploading…' : 'GPX'}
+                        <input
+                          type="file"
+                          accept=".gpx"
+                          ref={geoTrailId === t.trail_id ? geoFileRef : null}
+                          style={{ display: 'none' }}
+                          onChange={e => handleGeoUpload(t.trail_id, e.target.files[0])}
+                        />
+                      </label>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTrail(t)}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Trail Add/Edit Modal ── */}
+      {trailModal && (
+        <Modal title={trailModal === 'add' ? 'Add Trail' : 'Edit Trail'} onClose={() => setTrailModal(null)}>
+          {trailError && <div className="alert alert-error">{trailError}</div>}
+          <div className="form-group">
+            <label>Trail Name</label>
+            <input value={trailForm.name} onChange={e => setTF('name', e.target.value)} required />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Distance (miles)</label>
+              <input type="number" step="0.001" value={trailForm.distance_miles} onChange={e => setTF('distance_miles', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Elevation (feet)</label>
+              <input type="number" value={trailForm.elevation_feet} onChange={e => setTF('elevation_feet', e.target.value)} />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Sort Order</label>
+            <input type="number" value={trailForm.sort_order} onChange={e => setTF('sort_order', e.target.value)} />
+          </div>
+          {trailModal !== 'add' && (
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!!trailForm.is_active}
+                  onChange={e => setTF('is_active', e.target.checked ? 1 : 0)}
+                  style={{ width: 'auto', marginRight: '0.5rem' }}
+                />
+                Active
+              </label>
+            </div>
+          )}
+          <div className="modal-footer">
+            <button className="btn btn-ghost" onClick={() => setTrailModal(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSaveTrail} disabled={trailSaving || !trailForm.name?.trim()}>
+              {trailSaving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 // ── Main Admin Resources Page ───────────────────────────────
 export default function AdminResources() {
   const [tab, setTab] = useState('updates');
@@ -603,6 +1007,7 @@ export default function AdminResources() {
           {tab === 'updates'   && <UpdatesTab />}
           {tab === 'documents' && <DocumentsTab />}
           {tab === 'sponsors'  && <SponsorsTab />}
+          {tab === 'strava'    && <StravaTab />}
         </div>
       </div>
     </div>

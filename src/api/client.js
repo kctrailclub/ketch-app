@@ -242,6 +242,43 @@ export const deleteResourceDocument = (id) =>
 
 export const bulkCreateHouseholds = () => api.post('/users/bulk-households');
 
+// ── Strava ──────────────────────────────────────────────────
+export const getStravaAuthUrl = () => api.get('/strava/auth-url');
+export const stravaCallback = (code) => api.post('/strava/callback', { code });
+export const getStravaConnection = () => api.get('/strava/connection');
+export const disconnectStrava = () => api.delete('/strava/connection');
+
+// Strava Trails
+export const getStravaTrails = (includeInactive = false) =>
+  api.get('/strava/trails', { params: { include_inactive: includeInactive } });
+export const createStravaTrail = (data) => api.post('/strava/trails', data);
+export const updateStravaTrail = (id, data) => api.patch(`/strava/trails/${id}`, data);
+export const deleteStravaTrail = (id) => api.delete(`/strava/trails/${id}`);
+
+// GPX management
+export const gpxPreview = (file) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return api.post('/strava/trails/gpx-preview', fd);
+};
+export const gpxImport = (file, selections) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('selections', JSON.stringify(selections));
+  return api.post('/strava/trails/gpx-import', fd);
+};
+export const uploadTrailGeometry = (trailId, file, trackName = null) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  if (trackName) fd.append('track_name', trackName);
+  return api.post(`/strava/trails/${trailId}/geometry`, fd);
+};
+
+// Sync & challenge
+export const syncTrailsChallenge = () => api.post('/strava/sync');
+export const getTrailsChallenge = () => api.get('/strava/trails-challenge');
+export const getTrailsChallengeLeaderboard = () => api.get('/strava/trails-challenge/leaderboard');
+
 // Waiver
 export const getWaiverSettings = () => api.get('/settings/waiver');
 export const updateWaiverSettings = (data) => api.post('/settings/waiver', data);
