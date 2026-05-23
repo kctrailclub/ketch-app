@@ -146,10 +146,10 @@ function StravaSection() {
     setSyncIsError(false);
     try {
       const res = await syncTrailsChallenge();
+      await loadData();
       setSyncMsg(res.data.detail || 'Sync complete');
       setSyncIsError(false);
-      setTimeout(() => setSyncMsg(m => (m && !syncIsError ? '' : m)), 8000);
-      await loadData();
+      setTimeout(() => setSyncMsg(''), 8000);
     } catch (err) {
       setSyncMsg(err.response?.data?.detail || 'Sync failed. Please try again.');
       setSyncIsError(true);
