@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getHours, getPendingHours } from '../api/client';
+import { getHours, getPendingHours, getStravaConnection, getTrailsChallenge } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 const currentYear = new Date().getFullYear();
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [myHours,      setMyHours]      = useState([]);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [loading,      setLoading]      = useState(true);
+  const [myHours,        setMyHours]        = useState([]);
+  const [pendingCount,   setPendingCount]   = useState(0);
+  const [stravaConnected, setStravaConnected] = useState(false);
+  const [stravaChallenge, setStravaChallenge] = useState(null);
+  const [loading,        setLoading]        = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -20,6 +22,19 @@ export default function Dashboard() {
         if (user?.is_admin) {
           const pendingRes = await getPendingHours();
           setPendingCount(pendingRes.data.length);
+        }
+
+        if (user?.is_tester) {
+          try {
+            const [connRes, challengeRes] = await Promise.all([
+              getStravaConnection(),
+              getTrailsChallenge(),
+            ]);
+            setStravaConnected(connRes.data.connected);
+            setStravaChallenge(challengeRes.data);
+          } catch {
+            // Strava not configured — hide silently
+          }
         }
       } catch (err) {
         console.error(err);
@@ -65,6 +80,46 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Trails Challenge progress — connected testers only */}
+        {user?.is_tester && stravaConnected && stravaChallenge && (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <div className="card-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FC4C02" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                Trails Challenge
+              </h3>
+              <Link to="/resources" className="btn btn-ghost btn-sm">View details</Link>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginBottom: '0.5rem' }}>
+              <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--forest)' }}>
+                {stravaChallenge.completed_trails}
+              </span>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                of {stravaChallenge.total_trails} trails complete
+              </span>
+              {stravaChallenge.completed_trails === stravaChallenge.total_trails && stravaChallenge.total_trails > 0 && (
+                <span style={{
+                  fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem',
+                  borderRadius: 999, background: '#DCFCE7', color: '#16A34A', marginLeft: '0.5rem',
+                }}>
+                  ALL COMPLETE
+                </span>
+              )}
+            </div>
+            <div style={{ height: 8, background: 'var(--stone)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: 4,
+                width: `${stravaChallenge.total_trails > 0 ? (stravaChallenge.completed_trails / stravaChallenge.total_trails) * 100 : 0}%`,
+                background: stravaChallenge.completed_trails === stravaChallenge.total_trails ? '#16A34A' : '#FC4C02',
+                transition: 'width 0.4s ease',
+              }} />
+            </div>
+          </div>
+        )}
 
         {/* Admin actions */}
         {user?.is_admin && pendingCount > 0 && (
