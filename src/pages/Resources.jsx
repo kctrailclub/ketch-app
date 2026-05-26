@@ -115,8 +115,6 @@ function StravaSection() {
     }
   }, [loadData]);
 
-  // Feature gate: only visible to testers
-  if (!user?.is_tester) return null;
   if (loading) return null;
 
   const handleConnect = async () => {
@@ -340,12 +338,15 @@ function StravaSection() {
                     )}
                   </div>
 
-                  {/* Last synced date (right-aligned) */}
-                  {trail.last_synced && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {new Date(trail.last_synced).toLocaleDateString()}
-                    </span>
-                  )}
+                  {/* Coverage / sync info (right-aligned) */}
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                    {!trail.is_completed && trail.coverage_pct > 0 && (
+                      <span style={{ color: '#EA580C', fontWeight: 500, marginRight: trail.last_synced ? '0.4rem' : 0 }}>
+                        {Math.round(trail.coverage_pct)}% covered
+                      </span>
+                    )}
+                    {trail.last_synced && new Date(trail.last_synced).toLocaleDateString()}
+                  </span>
                 </div>
               ))}
             </div>
