@@ -24,17 +24,15 @@ export default function Dashboard() {
           setPendingCount(pendingRes.data.length);
         }
 
-        if (user?.is_tester) {
-          try {
-            const [connRes, challengeRes] = await Promise.all([
-              getStravaConnection(),
-              getTrailsChallenge(),
-            ]);
-            setStravaConnected(connRes.data.connected);
-            setStravaChallenge(challengeRes.data);
-          } catch {
-            // Strava not configured — hide silently
-          }
+        try {
+          const [connRes, challengeRes] = await Promise.all([
+            getStravaConnection(),
+            getTrailsChallenge(),
+          ]);
+          setStravaConnected(connRes.data.connected);
+          setStravaChallenge(challengeRes.data);
+        } catch {
+          // Strava not configured — hide silently
         }
       } catch (err) {
         console.error(err);
@@ -81,8 +79,8 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Trails Challenge progress — connected testers only */}
-        {user?.is_tester && stravaConnected && stravaChallenge && (
+        {/* Trails Challenge progress — connected members only */}
+        {stravaConnected && stravaChallenge && (
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <div className="card-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
