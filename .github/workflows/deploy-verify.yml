@@ -1,0 +1,45 @@
+name: deploy-verify
+
+# Deploy Sign-off Checks 1 + 2 (kctc-docs/testing/Deploy_Sign-off_Checklist.md §4.1), automated.
+# Confirms the build served at kctrailclub.org was built from the tip of origin/main.
+# Requires index.html to carry <meta name="build-sha" content="<COMMIT_REF>"> (vite.config.js, Operating Model v2 Phase 1).
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * 0"   # Sunday 00:00 UTC = Saturday 18:00 Denver (after the DEC-0015 16:00 release event)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://kctrailclub.org/
+
+jobs:
+  verify-prod-sha:
+    name: verify-prod-sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Wait for Netlify to serve origin/main
+        run: |
+          expected="$(git rev-parse HEAD)"
+          echo "origin/main = $expected"
+          for attempt in $(seq 1 24); do
+            html="$(curl -fsS --max-time 15 -H 'Cache-Control: no-cache' "$PROD_URL" || true)"
+            deployed="$(printf '%s' "$html" | grep -o 'name="build-sha" content="[0-9a-f]*"' | grep -o '[0-9a-f]\{7,40\}' | head -1)"
+            echo "attempt $attempt: deployed = ${deployed:-<none>}"
+            if [ -n "$deployed" ] && [ "$deployed" = "$expected" ]; then
+              echo "PASS: kctrailclub.org is serving a build of origin/main ($expected)"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "FAIL: deployed build SHA (${deployed:-<none>}) != origin/main ($expected) after 12 minutes"
+          echo "Check 2 of the Deploy Sign-off fails. Do not close the release."
+          exit 1
