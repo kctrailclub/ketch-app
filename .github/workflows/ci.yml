@@ -1,0 +1,67 @@
+name: ci
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  app-build:
+    # Required status check for merges to main (Operating Model v2 Phase 1, DEC-0020).
+    name: app-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  app-lint:
+    # Informational until the 7 pre-existing eslint errors are cleared (Tech Debt Register); then promote to required.
+    name: app-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  app-security:
+    # Informational: not a required check. Findings feed the Security Engineer's Monday sweep (DEC-0020 D5).
+    name: app-security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: npm audit (high and critical)
+        run: npm audit --audit-level=high
+
+  secrets-scan:
+    # Informational: full-history secret scan. Complements GitHub secret scanning + push protection.
+    name: secrets-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        run: >
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest
+          detect --source /repo --redact --no-banner --exit-code 1
