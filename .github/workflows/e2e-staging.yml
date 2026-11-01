@@ -3,22 +3,20 @@ name: e2e-staging
 # Browser suite against staging (kctc-docs/testing/Automated_Test_Plan.md §5.3, §5.5, §5.6; DEC-0023).
 # Informational (Q-0056): this is not a required check.
 #
-# GitHub runs `schedule`, `repository_dispatch` and `workflow_dispatch` only when this file is on the
-# default branch. For the first two GITHUB_REF is main. Whichever trigger fired, the job below tests
-# the exact origin/staging commit that staging is serving, never the triggering ref. That is why the
-# staging-e2e environment's deployment rule must allow both main and staging (e2e/README.md).
+# GitHub runs `schedule` and `workflow_dispatch` only when this file is on the default branch, and a
+# scheduled run has GITHUB_REF = main. Whichever trigger fired, the job below tests the exact
+# origin/staging commit that staging is serving, never the triggering ref. The staging-e2e environment's
+# deployment rule allows staging, plus main for the Saturday schedule (e2e/README.md).
 
 on:
   push:
     branches: [staging]
-  repository_dispatch:
-    types: [ketch-api-staging-push]   # Sent by ketch-api .github/workflows/dispatch-e2e.yml. The payload is never read.
   schedule:
     # Cron is UTC only, so the Denver time moves with DST: Saturday 14:17 MDT (UTC-6) or 13:17 MST (UTC-7).
     # Either way it is over 2 h before the DEC-0015 16:00 event, enough for the 12 min wait, the suite, and
     # GitHub's schedule delays. Off the top of the hour, which GitHub names as a high-load time.
     - cron: "17 20 * * 6"
-  workflow_dispatch:
+  workflow_dispatch:   # Manual, and from ketch-api .github/workflows/dispatch-e2e.yml with ref staging.
     inputs:
       tags:
         description: "Tag filter, e.g. @p1 or @p1|@p2. Empty runs everything except @quarantine."

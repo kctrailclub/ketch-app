@@ -52,9 +52,9 @@ One id passes the guard whoever it belongs to. Rule §6.2(1) and BL-0038 cover t
 | Trigger | `GITHUB_REF` | Workflow file comes from | Works once the file is on |
 |---|---|---|---|
 | `push` to `staging` | `staging` | `staging` | `staging` |
-| `repository_dispatch` (`ketch-api` staging push) | `main` | `main` | `main` |
+| `workflow_dispatch` from a `ketch-api` staging push (`dispatch-e2e.yml`, ref `staging`, tags `@p1\|@p2\|@guard`) | `staging` | `staging` | `main` |
 | `schedule` (Saturday) | `main` | `main` | `main` |
-| `workflow_dispatch` | the branch chosen | that branch | `main` |
+| `workflow_dispatch`, manual | the branch chosen | that branch | `main` |
 
 The workflow file can therefore lag the suite: a scheduled run uses `main`'s workflow with `staging`'s specs. A new secret must be mapped in the workflow on `main` before scheduled runs can use it.
 
@@ -62,4 +62,6 @@ The workflow file can therefore lag the suite: a scheduled run uses `main`'s wor
 
 The deployment-branch rule is **selected branches: `main` and `staging`**. Secrets are `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_FAMILY_EMAIL`, `E2E_FAMILY_PASSWORD`, `E2E_SOLO_EMAIL` and `E2E_SOLO_PASSWORD`, all staging-only (`ketch-api/scripts/sync_prod_to_staging.README.md`).
 
-GitHub matches the rule against `GITHUB_REF`, so `main` has to be allowed for the schedule and dispatch runs. `pull_request` runs have the ref `refs/pull/N/merge`, which does not match, and this workflow has no `pull_request` trigger anyway. Create the environment and its rule **before** this workflow first runs: GitHub otherwise creates the environment with no rule and no secrets.
+GitHub matches the rule against `GITHUB_REF`. `main` is in the rule only for the Saturday schedule, whose `GITHUB_REF` is always `main`; choose `staging` for manual runs. `pull_request` runs have the ref `refs/pull/N/merge`, which does not match, and this workflow has no `pull_request` trigger anyway. Create the environment and its rule **before** this workflow first runs: GitHub otherwise creates the environment with no rule and no secrets.
+
+**No privileged trigger may name `staging-e2e`:** no workflow triggered by `pull_request_target`, `workflow_run` or `issue_comment` may reference this environment. Those run in a privileged context from the default branch, on behalf of events anyone can cause.
