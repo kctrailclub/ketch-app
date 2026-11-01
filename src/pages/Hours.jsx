@@ -55,12 +55,13 @@ export function SubmitHours() {
 
         <div className="card">
           <form onSubmit={handleSubmit}>
-            {error && <div className="alert alert-error">{error}</div>}
+            {error && <div className="alert alert-error" data-testid="log-hours-error">{error}</div>}
 
             <div className="form-group">
               <label htmlFor="project">Project</label>
               <select
                 id="project"
+                data-testid="log-hours-project"
                 value={form.project_id}
                 onChange={e => set('project_id', e.target.value)}
                 required
@@ -76,6 +77,7 @@ export function SubmitHours() {
               <label htmlFor="date">Service Date</label>
               <input
                 id="date"
+                data-testid="log-hours-date"
                 type="date"
                 value={form.service_date}
                 onChange={e => set('service_date', e.target.value)}
@@ -89,6 +91,7 @@ export function SubmitHours() {
               <label htmlFor="hours">Hours</label>
               <input
                 id="hours"
+                data-testid="log-hours-hours"
                 type="number"
                 min="0.25"
                 step="0.25"
@@ -106,6 +109,7 @@ export function SubmitHours() {
               <label htmlFor="notes">Notes <span style={{fontWeight:400,textTransform:'none',color:'var(--text-muted)'}}>(optional)</span></label>
               <textarea
                 id="notes"
+                data-testid="log-hours-notes"
                 value={form.notes}
                 onChange={e => set('notes', e.target.value)}
                 placeholder="Describe the work you did…"
@@ -113,7 +117,7 @@ export function SubmitHours() {
             </div>
 
             <div style={{ display:'flex', gap:'0.75rem', marginTop:'0.5rem' }}>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
+              <button type="submit" className="btn btn-primary" data-testid="log-hours-submit" disabled={loading}>
                 {loading ? 'Submitting…' : 'Submit Hours'}
               </button>
               <Link to="/hours" className="btn btn-ghost">Cancel</Link>
@@ -214,10 +218,10 @@ export function MyHours() {
             <p>{creditedTotal.toFixed(1)} approved credited hours in {year}</p>
           </div>
           <div style={{ display:'flex', gap:'0.75rem', alignItems:'center' }}>
-            <select value={year} onChange={e => setYear(Number(e.target.value))} style={{ width:'auto' }}>
+            <select data-testid="hours-year-select" value={year} onChange={e => setYear(Number(e.target.value))} style={{ width:'auto' }}>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-            <Link to="/hours/submit" className="btn btn-primary">+ Log Hours</Link>
+            <Link to="/hours/submit" className="btn btn-primary" data-testid="hours-log-hours">+ Log Hours</Link>
           </div>
         </div>
 
@@ -225,10 +229,10 @@ export function MyHours() {
           const pct = Math.min((creditedTotal / threshold) * 100, 100);
           const met = creditedTotal >= threshold;
           return (
-            <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <div className="card" data-testid="reward-progress" style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
                 <strong>Reward Progress</strong>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                <span data-testid="reward-progress-total" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                   {creditedTotal.toFixed(1)} / {threshold} credited hours
                 </span>
               </div>
@@ -264,7 +268,7 @@ export function MyHours() {
           {loading ? (
             <span className="spinner" />
           ) : hours.length === 0 ? (
-            <div className="empty-state">
+            <div className="empty-state" data-testid="hours-empty">
               <p>No hours found for {year}.</p>
               <Link to="/hours/submit" className="btn btn-primary" style={{marginTop:'1rem'}}>Log Hours</Link>
             </div>
@@ -284,7 +288,7 @@ export function MyHours() {
                 </thead>
                 <tbody>
                   {hours.map(h => (
-                    <tr key={h.hour_id}>
+                    <tr key={h.hour_id} data-testid="hours-row">
                       <td><strong>{h.member_name}</strong></td>
                       <td>
                         {new Date(h.service_date).toLocaleDateString()}
@@ -308,7 +312,7 @@ export function MyHours() {
                       <td style={{maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                         {h.notes || '—'}
                       </td>
-                      <td><span className={`badge badge-${h.status}`}>{h.status}</span></td>
+                      <td><span data-testid="hours-row-status" className={`badge badge-${h.status}`}>{h.status}</span></td>
                       <td>
                         {h.status === 'pending' && h.member_id === user?.user_id && (
                           <div style={{ display:'flex', gap:'0.5rem' }}>

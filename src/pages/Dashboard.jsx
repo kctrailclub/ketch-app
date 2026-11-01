@@ -53,10 +53,10 @@ export default function Dashboard() {
       <div className="container">
         <div className="page-header">
           <div className="page-header-text">
-            <h1>Welcome back, {user?.firstname}</h1>
+            <h1 data-testid="dashboard-heading">Welcome back, {user?.firstname}</h1>
             <p>Here's your volunteer activity for {currentYear}</p>
           </div>
-          <Link to="/hours/submit" className="btn btn-primary">
+          <Link to="/hours/submit" className="btn btn-primary" data-testid="dashboard-log-hours">
             + Log Hours
           </Link>
         </div>

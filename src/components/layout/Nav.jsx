@@ -66,6 +66,7 @@ export default function Nav() {
             <li key={l.to}>
               <Link
                 to={l.to}
+                data-testid={`nav-link-${l.to.slice(1).replace(/\//g, '-')}`}
                 className={`nav-link ${isActive(l.to) ? 'active' : ''}`}
               >
                 {l.label}
@@ -79,11 +80,12 @@ export default function Nav() {
           <div className="nav-dropdown" ref={dropdownRef}>
             <button
               className="nav-dropdown-trigger"
+              data-testid="nav-user-menu"
               onClick={() => setDropdownOpen(o => !o)}
             >
-              <span className="nav-user">
+              <span className="nav-user" data-testid="nav-user-name">
                 {user?.firstname} {user?.lastname}
-                {user?.is_admin && <span className="badge badge-admin" style={{marginLeft:'0.5rem',fontSize:'0.7rem'}}>Admin</span>}
+                {user?.is_admin && <span className="badge badge-admin" data-testid="nav-admin-badge" style={{marginLeft:'0.5rem',fontSize:'0.7rem'}}>Admin</span>}
               </span>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M3 5l3 3 3-3"/>
@@ -101,6 +103,7 @@ export default function Nav() {
                 <div className="nav-dropdown-divider" />
                 <button
                   className="nav-dropdown-item"
+                  data-testid="nav-sign-out"
                   onClick={() => { setDropdownOpen(false); handleSignOut(); }}
                 >
                   Sign out

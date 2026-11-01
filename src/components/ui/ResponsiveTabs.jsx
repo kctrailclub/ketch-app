@@ -8,6 +8,7 @@ export default function ResponsiveTabs({ tabs, active, onChange }) {
           {tabs.map(t => (
             <button
               key={t.id}
+              data-testid={`tab-${t.id}`}
               className={`responsive-tab-btn${active === t.id ? ' active' : ''}`}
               onClick={() => onChange(t.id)}
             >
