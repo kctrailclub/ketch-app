@@ -149,12 +149,14 @@ export default function AdminHours() {
         <div style={{ display:'flex', gap:'0.5rem', marginBottom:'1.5rem' }}>
           <button
             className={`btn ${tab === 'pending' ? 'btn-primary' : 'btn-ghost'}`}
+            data-testid="admin-hours-tab-pending"
             onClick={() => setTab('pending')}
           >
             Pending{pending.length > 0 ? ` (${pending.length})` : ''}
           </button>
           <button
             className={`btn ${tab === 'approved' ? 'btn-primary' : 'btn-ghost'}`}
+            data-testid="admin-hours-tab-approved"
             onClick={() => setTab('approved')}
           >
             Approved
@@ -202,7 +204,7 @@ export default function AdminHours() {
                     </thead>
                     <tbody>
                       {pending.map(h => (
-                        <tr key={h.hour_id}>
+                        <tr key={h.hour_id} data-testid="pending-row">
                           <td><strong>{h.member_name}</strong></td>
                           <td>{h.project_name}</td>
                           <td>
@@ -220,8 +222,8 @@ export default function AdminHours() {
                           <td>{new Date(h.submitted_on + (h.submitted_on.endsWith?.('Z') ? '' : 'Z')).toLocaleDateString()}</td>
                           <td>
                             <div style={{ display:'flex', gap:'0.5rem' }}>
-                              <button className="btn btn-secondary btn-sm" onClick={() => openEdit(h, 'pending')}>Edit</button>
-                              <button className="btn btn-primary btn-sm" onClick={() => openModal(h, 'approved')}>Approve</button>
+                              <button className="btn btn-secondary btn-sm" data-testid="pending-row-edit" onClick={() => openEdit(h, 'pending')}>Edit</button>
+                              <button className="btn btn-primary btn-sm" data-testid="pending-row-approve" onClick={() => openModal(h, 'approved')}>Approve</button>
                               <button className="btn btn-danger btn-sm" onClick={() => openModal(h, 'rejected')}>Reject</button>
                             </div>
                           </td>
@@ -252,6 +254,7 @@ export default function AdminHours() {
               <input
                 type="text"
                 placeholder="Search by member or project name…"
+                data-testid="approved-search"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{ width:'100%' }}
@@ -280,7 +283,7 @@ export default function AdminHours() {
                     </thead>
                     <tbody>
                       {filtered.map(h => (
-                        <tr key={h.hour_id}>
+                        <tr key={h.hour_id} data-testid="approved-row">
                           <td><strong>{h.member_name}</strong></td>
                           <td>{h.project_name}</td>
                           <td>
@@ -296,7 +299,7 @@ export default function AdminHours() {
                             {h.notes || '—'}
                           </td>
                           <td>
-                            <button className="btn btn-ghost btn-sm" onClick={() => openEdit(h)}>Edit</button>
+                            <button className="btn btn-ghost btn-sm" data-testid="approved-row-edit" onClick={() => openEdit(h)}>Edit</button>
                           </td>
                         </tr>
                       ))}
@@ -335,6 +338,7 @@ export default function AdminHours() {
               <button className="btn btn-ghost" onClick={closeModal}>Cancel</button>
               <button
                 className={`btn ${modal.action === 'approved' ? 'btn-primary' : 'btn-danger'}`}
+                data-testid="review-modal-confirm"
                 onClick={handleReview}
                 disabled={saving}
               >
@@ -398,6 +402,7 @@ export default function AdminHours() {
               <label>Hours</label>
               <input
                 type="number"
+                data-testid="edit-modal-hours"
                 step="0.5"
                 min="0.5"
                 value={editForm.hours}
@@ -411,17 +416,18 @@ export default function AdminHours() {
                 value={editForm.notes}
                 onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
                 placeholder="Optional notes…"
+                data-testid="edit-modal-notes"
               />
             </div>
 
             {!deleteConfirm ? (
               <div className="modal-footer" style={{ justifyContent:'space-between' }}>
-                <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(true)}>
+                <button className="btn btn-danger btn-sm" data-testid="edit-modal-delete" onClick={() => setDeleteConfirm(true)}>
                   Delete
                 </button>
                 <div style={{ display:'flex', gap:'0.5rem' }}>
                   <button className="btn btn-ghost" onClick={closeEdit}>Cancel</button>
-                  <button className="btn btn-primary" onClick={handleEditSave} disabled={editSaving}>
+                  <button className="btn btn-primary" data-testid="edit-modal-save" onClick={handleEditSave} disabled={editSaving}>
                     {editSaving ? 'Saving…' : editSource === 'pending' ? 'Save & Approve' : 'Save Changes'}
                   </button>
                 </div>
@@ -437,12 +443,13 @@ export default function AdminHours() {
                     value={deleteReason}
                     onChange={e => setDeleteReason(e.target.value)}
                     placeholder="e.g. Duplicate entry, work leader dispute…"
+                    data-testid="delete-reason"
                     rows={2}
                   />
                 </div>
                 <div className="modal-footer">
                   <button className="btn btn-ghost" onClick={() => setDeleteConfirm(false)}>Go Back</button>
-                  <button className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+                  <button className="btn btn-danger" data-testid="delete-confirm" onClick={handleDelete} disabled={deleting}>
                     {deleting ? 'Deleting…' : 'Confirm Delete'}
                   </button>
                 </div>

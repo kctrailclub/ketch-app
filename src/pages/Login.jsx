@@ -47,12 +47,13 @@ export default function Login() {
         <p className="login-subtitle">Sign in to track your trail work</p>
 
         <form onSubmit={handleSubmit}>
-          {error && <div className="alert alert-error">{error}</div>}
+          {error && <div className="alert alert-error" data-testid="login-error">{error}</div>}
 
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
               id="email"
+              data-testid="login-email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -67,6 +68,7 @@ export default function Login() {
             <div style={{ position:'relative' }}>
               <input
                 id="password"
+                data-testid="login-password"
                 type={showPass ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -91,6 +93,7 @@ export default function Login() {
 
           <button
             type="submit"
+            data-testid="login-submit"
             className="btn btn-primary btn-lg"
             style={{ width: '100%', marginTop: '0.5rem' }}
             disabled={loading}

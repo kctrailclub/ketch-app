@@ -541,7 +541,7 @@ export default function Reports() {
       <div className="container">
         <div className="page-header">
           <div className="page-header-text">
-            <h1>Reports</h1>
+            <h1 data-testid="reports-heading">Reports</h1>
             <p>Volunteer hours analytics</p>
           </div>
         </div>

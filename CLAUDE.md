@@ -14,7 +14,7 @@ npm run lint     # eslint
 npm run build    # vite build — must pass before any PR
 npm run dev
 ```
-No test framework yet; the Tester owns the Automated Test Plan that will add one.
+Browser suite against staging: `e2e/` (Playwright; read `e2e/README.md` first). The Tester owns its specs under the Automated Test Plan. Attributes named `data-testid` are its selectors, so keep them when refactoring.
 
 ## Layout
 `src/api/client.js` (all API calls, grouped under section-comment banners — keep new exports under the right banner, TD-0004), `src/pages/` (one component per route; `Reports.jsx`, `AdminUsers.jsx`, `AdminResources.jsx` are 600+ LOC and slated for extraction, TD-0010), `src/components/Nav.jsx`, `src/context/AuthContext.jsx` (access token in memory, 401 interceptor with coalesced refresh), `public/_redirects` (SPA routing on Netlify).

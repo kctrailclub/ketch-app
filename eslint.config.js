@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'e2e/.output']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -30,5 +30,11 @@ export default defineConfig([
     // Build-time config runs under Node, not the browser (process.env.COMMIT_REF in vite.config.js).
     files: ['vite.config.js'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // Playwright suite: runs under Node. Its fixtures call a parameter named `use`, which the hooks rule reads as React's `use`.
+    files: ['e2e/**/*.js'],
+    languageOptions: { globals: globals.node },
+    rules: { 'react-hooks/rules-of-hooks': 'off', 'react-refresh/only-export-components': 'off' },
   },
 ])
