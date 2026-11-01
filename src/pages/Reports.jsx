@@ -157,7 +157,7 @@ function WaiverTab() {
       </div>
 
       {/* Active-members-only note */}
-      <p style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginBottom:'1rem' }}>
+      <p data-testid="report-panel-waiver" style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginBottom:'1rem' }}>
         Showing active members only.
       </p>
 
@@ -564,7 +564,7 @@ export default function Reports() {
             </div>
 
             <div className="card" style={{ marginBottom:'1.5rem' }}>
-              <div className="card-header"><h3>Hours by Project — {currentYear}</h3></div>
+              <div className="card-header"><h3 data-testid="report-panel-projects">Hours by Project — {currentYear}</h3></div>
               {projectData.length === 0
                 ? <div className="empty-state"><p>No approved hours for {currentYear} yet.</p></div>
                 : <BarChart data={projectData} />}
@@ -644,7 +644,7 @@ export default function Reports() {
             ) : (<>
             <div className="card" style={{ marginBottom:'1.5rem' }}>
               <div className="card-header">
-                <h3>Project Hours — {trendYear}</h3>
+                <h3 data-testid="report-panel-trends">Project Hours — {trendYear}</h3>
                 <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
                   {trendData.reduce((s, p) => s + p.hours, 0).toFixed(1)} total hours
                 </span>
@@ -718,7 +718,7 @@ export default function Reports() {
             ) : (<>
             <div className="card" style={{ marginBottom:'1.5rem' }}>
               <div className="card-header">
-                <h3>Youth Project Hours — {youthYear}</h3>
+                <h3 data-testid="report-panel-youth">Youth Project Hours — {youthYear}</h3>
                 <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
                   {youthData.reduce((s, p) => s + p.hours, 0).toFixed(1)} total hours · {youthUserIds.size} youth member{youthUserIds.size !== 1 ? 's' : ''}
                 </span>
@@ -793,7 +793,7 @@ export default function Reports() {
             {/* Households with drill-down */}
             <div className="card" style={{ marginBottom:'1.5rem' }}>
               <div className="card-header">
-                <h3>Hours by Household — {memberYear}</h3>
+                <h3 data-testid="report-panel-members">Hours by Household — {memberYear}</h3>
                 <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
                   <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
                     {memberData.householdRows.length} households · click to expand
@@ -905,7 +905,7 @@ export default function Reports() {
           <>
             <div className="card" style={{ marginBottom:'1.5rem' }}>
               <div className="card-header">
-                <h3>Ask a Question</h3>
+                <h3 data-testid="report-panel-query">Ask a Question</h3>
               </div>
               <p style={{ fontSize:'0.9rem', color:'var(--text-muted)', marginBottom:'1rem' }}>
                 Ask a question in plain English about volunteer hours, members, projects, or households.
@@ -1046,7 +1046,7 @@ export default function Reports() {
             {/* Results */}
             <div className="card">
               <div className="card-header">
-                <h3>Activity Log</h3>
+                <h3 data-testid="report-panel-activity">Activity Log</h3>
                 <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
                   <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
                     {auditTotal} entries · Page {auditPage} of {auditPages}

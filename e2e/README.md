@@ -21,6 +21,8 @@ Put specs in `tests/`. Import `test` and `expect` from `support/fixtures.js`. Th
 - **Selectors:** `page.getByTestId(...)`. Add `data-testid` in the same PR as the spec.
 - **Data:** §6.2 is binding. Act only on rows the run created and on the test accounts, households and project.
 - **Staging sessions die on a full page load.** The refresh cookie cannot work on staging (EP-0045 finding). After `loginAs`, navigate by clicking, not with `page.goto`. A protected-route bounce seen after `page.goto` proves nothing on staging, because it happens with or without a logout.
+- **Console errors:** `support/console-watch.js` counts them and keeps no text. It allows the one `/auth/refresh` 401 that a page load gets on staging.
+- **HTTP rows:** `support/api.js` logs in through the `request` fixture. `support/tagged-rows.js` tags and sweeps rows (§6.2 rule 2).
 
 ## What the suite will not do
 
