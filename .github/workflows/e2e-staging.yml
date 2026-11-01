@@ -1,0 +1,161 @@
+name: e2e-staging
+
+# Browser suite against staging (kctc-docs/testing/Automated_Test_Plan.md §5.3, §5.5, §5.6; DEC-0023).
+# Informational (Q-0056): this is not a required check.
+#
+# GitHub runs `schedule`, `repository_dispatch` and `workflow_dispatch` only when this file is on the
+# default branch. For the first two GITHUB_REF is main. Whichever trigger fired, the job below tests
+# the exact origin/staging commit that staging is serving, never the triggering ref. That is why the
+# staging-e2e environment's deployment rule must allow both main and staging (e2e/README.md).
+
+on:
+  push:
+    branches: [staging]
+  repository_dispatch:
+    types: [ketch-api-staging-push]   # Sent by ketch-api .github/workflows/dispatch-e2e.yml. The payload is never read.
+  schedule:
+    # Cron is UTC only, so the Denver time moves with DST: Saturday 14:17 MDT (UTC-6) or 13:17 MST (UTC-7).
+    # Either way it is over 2 h before the DEC-0015 16:00 event, enough for the 12 min wait, the suite, and
+    # GitHub's schedule delays. Off the top of the hour, which GitHub names as a high-load time.
+    - cron: "17 20 * * 6"
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Tag filter, e.g. @p1 or @p1|@p2. Empty runs everything except @quarantine."
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Two runs must never mutate staging at once (§5.3 step 5). GitHub keeps one run in progress and one
+# pending in a group: a newer run replaces an older pending one, and nothing in progress is cancelled.
+concurrency:
+  group: e2e-staging
+  cancel-in-progress: false
+
+env:
+  STAGING_API_HEALTH_URL: https://web-production-b6591.up.railway.app/health
+  STAGING_APP_URL: https://kctcstaging.netlify.app/
+  API_REPO_URL: https://github.com/kctrailclub/ketch-api.git
+  APP_REPO_URL: https://github.com/kctrailclub/ketch-app.git
+
+jobs:
+  wait-for-staging:
+    # No environment and no secrets. A failure here means "environment not ready", not a test failure (§5.6).
+    name: wait-for-staging
+    if: github.repository == 'kctrailclub/ketch-app'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      api_sha: ${{ steps.wait.outputs.api_sha }}
+      app_sha: ${{ steps.wait.outputs.app_sha }}
+    steps:
+      - name: Wait for staging to serve origin/staging of both repos
+        id: wait
+        run: |
+          # The branch tips are re-read on each attempt, so a push during the wait is followed.
+          for attempt in $(seq 1 24); do
+            want_api="$(git ls-remote "$API_REPO_URL" refs/heads/staging | cut -f1 || true)"
+            want_app="$(git ls-remote "$APP_REPO_URL" refs/heads/staging | cut -f1 || true)"
+            body="$(curl -fsS --max-time 15 "$STAGING_API_HEALTH_URL" || true)"
+            got_api="$(printf '%s' "$body" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha",""))' 2>/dev/null || true)"
+            got_env="$(printf '%s' "$body" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("environment",""))' 2>/dev/null || true)"
+            html="$(curl -fsS --max-time 15 -H 'Cache-Control: no-cache' "$STAGING_APP_URL" || true)"
+            got_app="$(printf '%s' "$html" | grep -o 'name="build-sha" content="[0-9a-f]*"' | grep -o '[0-9a-f]\{7,40\}' | head -1 || true)"
+            echo "attempt $attempt: api ${got_api:-<none>} want ${want_api:-<none>} (env ${got_env:-<none>}); app ${got_app:-<none>} want ${want_app:-<none>}"
+            if [ "$got_env" = "staging" ] && [ -n "$want_api" ] && [ "$got_api" = "$want_api" ] && [ -n "$want_app" ] && [ "$got_app" = "$want_app" ]; then
+              echo "api_sha=$got_api" >> "$GITHUB_OUTPUT"
+              echo "app_sha=$got_app" >> "$GITHUB_OUTPUT"
+              echo "PASS: staging is serving origin/staging of both repos"
+              exit 0
+            fi
+            if [ "$attempt" -lt 24 ]; then sleep 30; fi
+          done
+          echo "::error title=environment not ready::Staging did not serve origin/staging of both repos within 12 minutes. This is not a test failure, and no tests ran."
+          {
+            echo "### Environment not ready"
+            echo ""
+            echo "No tests ran. This is not a test failure or a flake (Automated Test Plan §5.3, §5.6)."
+            echo ""
+            echo "| | Served | origin/staging |"
+            echo "|---|---|---|"
+            echo "| ketch-api | ${got_api:-none} (environment ${got_env:-none}) | ${want_api:-none} |"
+            echo "| ketch-app | ${got_app:-none} | ${want_app:-none} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+  e2e:
+    name: e2e
+    needs: wait-for-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Holds the test identities. The deployment rule allows only main and staging (e2e/README.md).
+    environment: staging-e2e
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.wait-for-staging.outputs.app_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Nothing before the "Run the suite" step can see a secret, and install scripts do not run at all.
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: Safety-net unit tests
+        run: npm run test:e2e:unit
+      - name: Record run identity in the job summary
+        env:
+          API_SHA: ${{ needs.wait-for-staging.outputs.api_sha }}
+          APP_SHA: ${{ needs.wait-for-staging.outputs.app_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "### e2e-staging run"
+            echo ""
+            echo "- Run: $RUN_URL"
+            echo "- Trigger: $GITHUB_EVENT_NAME"
+            echo "- Staging ketch-api (\`/health\` sha): \`$API_SHA\`"
+            echo "- Staging ketch-app (build-sha): \`$APP_SHA\`"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Run the suite
+        env:
+          TAG_FILTER: ${{ inputs.tags }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_FAMILY_EMAIL: ${{ secrets.E2E_FAMILY_EMAIL }}
+          E2E_FAMILY_PASSWORD: ${{ secrets.E2E_FAMILY_PASSWORD }}
+          E2E_SOLO_EMAIL: ${{ secrets.E2E_SOLO_EMAIL }}
+          E2E_SOLO_PASSWORD: ${{ secrets.E2E_SOLO_PASSWORD }}
+        run: |
+          if [ -z "$E2E_ADMIN_EMAIL" ] || [ -z "$E2E_ADMIN_PASSWORD" ]; then
+            echo "::error title=e2e not configured::The staging-e2e environment has no test identities. See e2e/README.md."
+            echo "### e2e not configured: the staging-e2e environment has no test identities. No tests ran." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          # §5.4: @p3 runs only on the Saturday schedule and manual runs.
+          case "$GITHUB_EVENT_NAME" in
+            schedule|workflow_dispatch) invert='@quarantine' ;;
+            *) invert='@quarantine|@p3' ;;
+          esac
+          args=(--grep-invert "$invert")
+          if [ -n "$TAG_FILTER" ]; then
+            if ! [[ "$TAG_FILTER" =~ ^@[a-z0-9-]+(\|@[a-z0-9-]+)*$ ]]; then
+              echo "::error title=bad tag filter::Use tags like @p1 or @p1|@p2."
+              exit 1
+            fi
+            args+=(--grep "$TAG_FILTER")
+          fi
+          npm run test:e2e -- "${args[@]}"
+      # Member-scoped pages only (support/fixtures.js). Only this folder is uploaded (Q-0058).
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failure-screenshots
+          path: e2e/.output/failure-screenshots/
+          retention-days: 3
+          if-no-files-found: ignore
